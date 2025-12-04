@@ -1,0 +1,45 @@
+[project]
+name = "django-insider"
+version = "0.1.0"
+description = "A Django middleware and logging package for monitoring requests and responses."
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    {name = "Morakinyo Joseph", email = "jmoraks03@gmail.com"}
+]
+
+keywords = ["django", "middleware", "logging", "request", "response", "monitoring"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Django",
+    "Framework :: Django :: 3.2",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.1",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "Django>=3.2"
+]
+
+[project.urls]
+Homepage = "https://github.com/Morakinyo-Joseph/django-insider"
+Repository = "https://github.com/Morakinyo-Joseph/django-insider"
+Documentation = "https://github.com/Morakinyo-Joseph/django-insider#readme"
+
+[build-system]
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["insider"]
+
+[tool.setuptools.package-data]
+"insider" = ["migrations/*.py", "templates/**/*", "static/**/*"]
