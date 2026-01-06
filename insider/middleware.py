@@ -53,6 +53,7 @@ class FootprintMiddleware(MiddlewareMixin):
         # Generate unique request ID
         request_id = str(uuid.uuid4())
 
+        # NOTE: Root configuration must be added to the documentation after the setup is complete.
         # Attach log handler for request
         handler = LogCaptureHandler()
 
