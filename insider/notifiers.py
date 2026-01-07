@@ -78,7 +78,7 @@ class SlackNotifier(BaseNotifier):
 
         blocks = [
             {"type": "header", "text": {"type": "plain_text", "text": header_text}},
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"<!Morakinyo> {section_text}"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"<!channel> {section_text}"}},
 
             {"type": "divider"},
 

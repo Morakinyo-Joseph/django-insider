@@ -1,9 +1,12 @@
 import logging
 from celery import shared_task
+from datetime import timedelta
 from django.db import transaction, models
+from django.utils import timezone
 from .models import Footprint, Issue
 from .utils import generate_fingerprint
 from .registry import get_active_publishers, get_active_notifiers
+from .settings import settings as insider_settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,32 +43,53 @@ def save_footprint_task(footprint_data: dict):
             footprint.issue = issue
             footprint.save(update_fields=['issue'])
 
-            if not created:
+            should_notify = False
+            if created:
+                should_notify = True
+
+            # Recurring Issue
+            else:
+                # Notify if issue was already marked resolved.
+                if issue.status == 'RESOLVED':
+                    issue.status = 'OPEN'
+                    issue.save(update_fields=['status'])
+                    should_notify = True
+
+                # Notify if the cooldown has passed.
+                else:
+                    time_since_notification = timezone.now() - issue.last_notified
+                    if time_since_notification > timedelta(hours=insider_settings.COOLDOWN_HOURS):
+                        should_notify = True
+
+            if should_notify:
+                issue.last_notified = timezone.now()
+                issue.save(update_fields=["last_notified"])
+
+                shared_context = {}
+            
+                if footprint.status_code == 500:
+                    # Run publishers
+                    for publisher in get_active_publishers():
+                        try:
+                            result = publisher.publish(footprint)
+                            if result:
+                                shared_context.update(result)
+                        except Exception as e:
+                            logger.error(f"INSIDER: Publisher failed: {e}")
+
+                # Run Notifiers
+                for notifier in get_active_notifiers():
+                    try:
+                        notifier.notify(footprint, context=shared_context)
+                    except Exception as e:
+                        logger.error(f"INSIDER: Notifier failed: {e}")
+
+            else:
+                # aggregate silently
                 Issue.objects.filter(id=issue.id).update(
                     occurrence_count=models.F('occurrence_count') + 1,
                     last_seen=models.functions.Now()
-                )
-                return
-            
-            shared_context = {}
-            
-            if footprint.status_code == 500:
-                # Run publishers
-                for publisher in get_active_publishers():
-                    try:
-                        result = publisher.publish(footprint)
-                        if result:
-                            shared_context.update(result)
-                    except Exception as e:
-                        logger.error(f"INSIDER: Publisher failed: {e}")
-
-            # Run Notifiers
-            for notifier in get_active_notifiers():
-                try:
-                    notifier.notify(footprint, context=shared_context)
-                except Exception as e:
-                    logger.error(f"INSIDER: Notifier failed: {e}")
-
+                )            
 
     except Exception as e:
         logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)

@@ -29,6 +29,12 @@ class Issue(models.Model):
         default="OPEN"
     )
 
+    last_notified = models.DateTimeField(
+        auto_now_add=True, 
+        null=True, 
+        blank=True
+    )
+
     def __str__(self):
         return f"{self.title} ({self.occurrence_count})"
 

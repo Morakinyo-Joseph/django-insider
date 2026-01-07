@@ -48,6 +48,7 @@ DEFAULTS: Dict[str, Any] = {
     "CAPTURE_METHODS": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
     "PUBLISHERS": [],
     "NOTIFIERS": [],
+    "COOLDOWN_HOURS": 24,
 }
 
 
@@ -69,6 +70,7 @@ class InsiderSettings:
     CAPTURE_METHODS: List[str] = field(default_factory=lambda: DEFAULTS["CAPTURE_METHODS"][:])
     PUBLISHERS: List[str] = field(default_factory=lambda: DEFAULTS["PUBLISHERS"][:])
     NOTIFIERS: List[str] = field(default_factory=lambda: DEFAULTS["NOTIFIERS"][:])
+    COOLDOWN_HOURS: int = DEFAULTS["COOLDOWN_HOURS"]
 
     # Additional raw dict copy for introspection if needed
     _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
