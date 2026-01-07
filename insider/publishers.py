@@ -1,8 +1,8 @@
 from abc import ABC
 import uuid
+import json
 from .models import Footprint
-from modules.jira import JiraManager
-
+from .services.jira import JiraManager
 
 class BasePublisher(ABC):
     """ Generic contract for all publishing services. """
@@ -16,29 +16,71 @@ class JiraPublisher(BasePublisher):
     def __init__(self):
         self.manager = JiraManager()
 
+    def _format_logs(self, logs):
+        """Helper to join list of logs into a clean string with newlines."""
+        
+        if not logs:
+            return "N/A"
+        
+        if isinstance(logs, list):
+            return "\n".join(logs)
+        
+        return str(logs)
+    
+    def _format_json(self, body):
+        """Helper to pretty-print JSON response body."""
+
+        if not body:
+            return "N/A"
+        
+        try:
+            if isinstance(body, str):
+                parsed = json.loads(body)
+                return json.dumps(parsed, indent=4)
+            
+            return json.dumps(body, indent=4)
+        
+        except Exception:
+            return str(body)
+        
+
+
     def publish(self, footprint, context=None):
         """
         Returns jira ticket url.
         """
 
-        # TODO: replace short_uuid with a hashed fingerprint
+        context = context or {}
+        summary = context.get("title", f"Insider Error: {footprint.status_code} at {footprint.request_path}")
         
-        short_uuid = str(uuid.uuid4())[:5]
-        summary = f"Insider Error: {footprint.status_code} User Error at {footprint.request_path} {short_uuid}"
+        logs_text = self._format_logs(footprint.system_logs)
+        response_text = self._format_json(footprint.response_body)
+        request_text = self._format_json(footprint.request_body)
+
         description = (
-            f"*Footprint ID:* {footprint.id}\n"
-            f"*User ID:* {footprint.request_user}\n"
-            f"*Endpoint:* {footprint.request_path}\n"
-            f"*Method:* {footprint.request_method.upper()}\n"
-            f"*Status Code:* {footprint.status_code}\n"
-            f"*Response Time:* {footprint.response_time:.2f} ms\n"
-            f"*Created At:* {footprint.created_at.isoformat()}\n\n"
+            f"h2. Error Details\n"
+            f"||Key||Value||\n"
+            f"|*Footprint ID*|{footprint.id}|\n"
+            f"|*User*|{footprint.request_user}|\n"
+            f"|*Endpoint*|{footprint.request_method.upper()} {footprint.request_path}|\n"
+            f"|*Status*|{footprint.status_code}|\n"
+            f"|*Response Time*|{footprint.response_time:.2f} ms|\n"
+            f"|*Occurred At*|{footprint.created_at.isoformat()}|\n\n"
 
-            f"--- *Response Body* ---\n"
-            f"{{code:json}}\n{footprint.response_body if footprint.response_body else 'N/A'}\n{{code}}\n\n"
+            f"h2. Request Body\n"
+            f"{{code:json}}\n"
+            f"{request_text}\n"
+            f"{{code}}\n\n"
 
-            f"--- *System Logs* ---\n"
-            f"{{noformat}}\n{footprint.system_logs if footprint.system_logs else 'N/A'}\n{{noformat}}"
+            f"h2. Response Body\n"
+            f"{{code:json}}\n"
+            f"{response_text}\n"
+            f"{{code}}\n\n"
+
+            f"h2. System Logs\n"
+            f"{{noformat}}\n"
+            f"{logs_text}\n"
+            f"{{noformat}}\n\n"
         )
         
         issue = self.manager.create_issue(

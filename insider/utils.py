@@ -1,5 +1,7 @@
 import sys
 from typing import Any
+import hashlib
+
 
 try:
     from django.conf import settings as django_settings
@@ -34,3 +36,32 @@ def is_celery_available() -> bool:
             return True
             
     return False
+
+
+def generate_fingerprint(footprint_data: dict) -> str:
+    """
+    Generates a unique MD5 hash to group errors.
+    """
+
+    stack_trace = footprint_data.get("stack_trace")
+    exc_name = footprint_data.get("exception_name")
+    path = footprint_data.get("request_path", '')
+    status = footprint_data.get("status_code", 200)
+
+    identify_string = ""
+
+    if stack_trace and isinstance(stack_trace, list) and len(stack_trace) > 0:
+        # The last frame of the stack trace is where the crash actually happened.
+        last_frame = stack_trace[-1]
+        file_name = last_frame.get('file', 'unknown')
+        line_no = last_frame.get('line', 0) 
+
+        # Identify = "ValueError|views.py|42"
+        identify_string = f"{exc_name}|{file_name}|{line_no}"
+
+    else:
+        # NOTE: Normalize paths (e.g. replace IDs with {id})
+        # to prevent /user2/1 and /users/2 creating different issues
+        identify_string = f"{status}|{path}"
+
+    return hashlib.md5(identify_string.encode('utf-8')).hexdigest()

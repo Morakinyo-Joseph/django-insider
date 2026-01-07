@@ -1,8 +1,10 @@
 import io
+import sys
 import time
 import uuid
 import json
 import logging
+import traceback
 from threading import Thread
 from typing import Dict, Any
 
@@ -113,6 +115,35 @@ class FootprintMiddleware(MiddlewareMixin):
 
         return response
     
+    def process_exception(self, request, exception):
+        """
+        Captures exception type and stack trace before Django handles it.
+        """
+
+        if getattr(request, "_insider_skip", False):
+            return None
+        
+        request._insider_exception_name = type(exception).__name__
+
+        # Capture Stack Trace
+        _, _, exc_traceback = sys.exc_info()
+        frames = traceback.extract_tb(exc_traceback)
+
+        # Format frames into JSON-serializable list
+        formatted_frames = []
+        for frame in frames:
+            formatted_frames.append({
+                "file": frame.filename,
+                "line": frame.lineno,
+                "function": frame.name,
+                "code": frame.line
+            })
+
+        request._insider_stack_trace = formatted_frames
+        return None
+        
+
+    
     def _capture_request_body(self, request) -> Dict[str, Any] | None:
         """
         Handles conditional capture, JSON parsing, and masking.
@@ -211,6 +242,9 @@ class FootprintMiddleware(MiddlewareMixin):
         ua = request.META.get("HTTP_USER_AGENT") if insider_settings.CAPTURE_USER_AGENT else None
 
         resp_content = self._capture_response_body(response)
+
+        exception_name = getattr(request, "_insider_exception_name", None)
+        stack_trace = getattr(request, "_insider_stack_trace", None)
         
         footprint_data = {
             'request_id': request_id,
@@ -225,6 +259,8 @@ class FootprintMiddleware(MiddlewareMixin):
             'user_agent': ua,
             'response_body': resp_content,
             'system_logs': system_logs,
+            'exception_name': exception_name,
+            'stack_trace': stack_trace,
         }
         
         db_alias_to_use = insider_settings.DB_ALIAS

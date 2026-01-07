@@ -17,7 +17,7 @@ class SlackManager:
     def send_alert(self, payload):
         try:
             response = requests.post(
-                url=self.channel,
+                url=self.webhook,
                 json=payload,
                 timeout=5
             )

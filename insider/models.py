@@ -1,6 +1,38 @@
 from django.db import models
 
 
+class Issue(models.Model):
+    """
+    Represents a unique group of errors (aggregated by fingerprint).
+    """
+
+    STATUS_CHOICES = (
+        ("OPEN", "Open"),
+        ("RESOLVED", "Resolved"),
+        ("IGNORED", "Ignored"),
+    )
+
+    fingerprint = models.CharField(
+        max_length=64, 
+        unique=True,
+        db_index=True
+    )
+    title = models.CharField(max_length=255)
+
+    occurrence_count = models.PositiveIntegerField(default=1)
+    first_seen = models.DateField(auto_now_add=True)
+    last_seen = models.DateField(auto_now=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="OPEN"
+    )
+
+    def __str__(self):
+        return f"{self.title} ({self.occurrence_count})"
+
+    
 class Footprint(models.Model):
     """
     Stores a detailed record of each HTTP request/response cycle captured by
@@ -22,6 +54,13 @@ class Footprint(models.Model):
         ("put", "Put"),
         ("patch", "Patch"),
         ("delete", "Delete")
+    )
+
+    issue = models.ForeignKey(
+        Issue, 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True
     )
 
     request_id = models.CharField(
@@ -72,6 +111,13 @@ class Footprint(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    exception_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    stack_trace = models.JSONField(null=True, blank=True
+                                   )
 
     class Meta:
         verbose_name = "Footprint"

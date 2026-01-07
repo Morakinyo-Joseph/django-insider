@@ -17,14 +17,11 @@ class JiraManager:
         self.username = settings.ATLASSIAN_EMAIL
         self.api_token = settings.ATLASSIAN_API_TOKEN
         self.project_key=settings.ATLASSIAN_JIRA_PROJECT_KEY
-        self.issue_type=settings.ATLASSIAN_ISSUE_TYPE or "bug"
-        self.assignee_id=settings.ATLASSIAN_ASSIGNEE_ID or None
+        self.issue_type=settings.ATLASSIAN_ISSUE_TYPE
+        self.assignee_id = getattr(settings, "ATLASSIAN_ASSIGNEE_ID", None)
 
-        if not all([self.url, self.username, self.api_token]):
-            raise ValueError("INSIDER: Jira API credentials (URL, Email, Token) are not fully configured in Django settings.")
-        
-        if not self.project_key:
-            raise ValueError("INSIDER: ATLASSIAN_JIRA_PROJECT_KEY not found in settings.")
+        if not all([self.url, self.username, self.api_token, self.project_key, self.issue_type]):
+            raise ValueError("INSIDER: Jira API credentials (URL, Email, Token, project_key, issue_type) are not fully configured in Django settings.")
 
     def _get_jira_client(self):
         """Helper to get a fresh Jira client instance."""
@@ -57,12 +54,12 @@ class JiraManager:
         """
 
         jira = self._get_jira_client()
-        
+
         fields = {
             "project": {"key": self.project_key},
             "summary": summary,
             "description": description,
-            "issuetype": {"name": self.issue_type},
+            "issuetype": {"id": self.issue_type},
         }
         
         if self.assignee_id:
