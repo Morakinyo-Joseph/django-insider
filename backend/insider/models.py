@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class Issue(models.Model):
+class Incidence(models.Model):
     """
     Represents a unique group of errors (aggregated by fingerprint).
     """
@@ -20,8 +20,8 @@ class Issue(models.Model):
     title = models.CharField(max_length=255)
 
     occurrence_count = models.PositiveIntegerField(default=1)
-    first_seen = models.DateField(auto_now_add=True)
-    last_seen = models.DateField(auto_now=True)
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
 
     status = models.CharField(
         max_length=20,
@@ -44,7 +44,7 @@ class Footprint(models.Model):
     Stores a detailed record of each HTTP request/response cycle captured by
     the Insider logging middleware.
 
-    This model helps developers track API usage, debug issues, analyze
+    This model helps developers track API usage, debug incidences, analyze
     performance, and monitor system behaviour. Each entry contains information
     about the incoming request (path, method, user, body, metadata), the
     generated response (body, status code, duration), and optional system logs
@@ -62,8 +62,8 @@ class Footprint(models.Model):
         ("delete", "Delete")
     )
 
-    issue = models.ForeignKey(
-        Issue, 
+    incidence = models.ForeignKey(
+        Incidence, 
         on_delete=models.CASCADE, 
         null=True, 
         blank=True

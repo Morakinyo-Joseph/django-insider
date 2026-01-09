@@ -83,14 +83,14 @@ class JiraPublisher(BasePublisher):
             f"{{noformat}}\n\n"
         )
         
-        issue = self.manager.create_issue(
+        incidence = self.manager.create_incidence(
             summary=summary,
             description=description,
             priority_level="Highest" if footprint.status_code >= 500 else "Medium"
         )
 
         return {
-            "published_url": issue,
+            "published_url": incidence,
             "published_service": "Jira",
-            "external_id": str(issue).strip("/")[-1]
+            "external_id": str(incidence).strip("/")[-1]
         }

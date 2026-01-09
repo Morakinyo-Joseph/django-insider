@@ -17,11 +17,11 @@ class JiraManager:
         self.username = settings.ATLASSIAN_EMAIL
         self.api_token = settings.ATLASSIAN_API_TOKEN
         self.project_key=settings.ATLASSIAN_JIRA_PROJECT_KEY
-        self.issue_type=settings.ATLASSIAN_ISSUE_TYPE
+        self.incidence_type=settings.ATLASSIAN_incidence_TYPE
         self.assignee_id = getattr(settings, "ATLASSIAN_ASSIGNEE_ID", None)
 
-        if not all([self.url, self.username, self.api_token, self.project_key, self.issue_type]):
-            raise ValueError("INSIDER: Jira API credentials (URL, Email, Token, project_key, issue_type) are not fully configured in Django settings.")
+        if not all([self.url, self.username, self.api_token, self.project_key, self.incidence_type]):
+            raise ValueError("INSIDER: Jira API credentials (URL, Email, Token, project_key, incidence_type) are not fully configured in Django settings.")
 
     def _get_jira_client(self):
         """Helper to get a fresh Jira client instance."""
@@ -38,18 +38,18 @@ class JiraManager:
             logger.error(f"INSIDER: Failed to initialize Jira client: {e}")
             raise
     
-    def create_issue(
+    def create_incidence(
             self,
             summary: str,
             description: str,
             priority_level: str = None
         ):
         """
-        Creates an issue (ticket) in a Jira project.
+        Creates an incidence (ticket) in a Jira project.
 
         Args:
-            summary (str): A brief summary/title of the issue.
-            description (str): A detailed description of the issue.
+            summary (str): A brief summary/title of the incidence.
+            description (str): A detailed description of the incidence.
             priority_level(str, optional): The priority level (e.g., 'High', 'Medium', 'Low').
         """
 
@@ -59,7 +59,7 @@ class JiraManager:
             "project": {"key": self.project_key},
             "summary": summary,
             "description": description,
-            "issuetype": {"id": self.issue_type},
+            "incidencetype": {"id": self.incidence_type},
         }
         
         if self.assignee_id:
@@ -69,13 +69,13 @@ class JiraManager:
             fields["priority"] = {"name": priority_level}
 
         try:
-            created_issue = jira.issue_create(fields=fields)
-            return f"{self.url}/browse/{created_issue['key']}"
+            created_incidence = jira.incidence_create(fields=fields)
+            return f"{self.url}/browse/{created_incidence['key']}"
 
         
         except (HTTPError, ConnectionError, Timeout) as e:
             status_code = e.response.status_code if hasattr(e, 'response') and e.response else 'N/A'
             message = e.response.text if hasattr(e, 'response') and e.response else str(e)
 
-            logger.error(f"INSIDER: Failed to create Jira issue. Status: {status_code}, Message: {message}")
+            logger.error(f"INSIDER: Failed to create Jira incidence. Status: {status_code}, Message: {message}")
             raise

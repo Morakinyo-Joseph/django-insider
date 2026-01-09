@@ -119,7 +119,7 @@ class SlackNotifier(BaseNotifier):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"✅ An issue has been automatically created in *{published_service}*."
+                    "text": f"✅ An incidence has been automatically created in *{published_service}*."
                 },
                 "accessory": {
                     "type": "button",
@@ -128,7 +128,7 @@ class SlackNotifier(BaseNotifier):
                         "text": f"View on {published_service}"
                     },
                     "url": published_url,
-                    "action_id": "view_external_issue"
+                    "action_id": "view_external_incidence"
                 },  
             })
 

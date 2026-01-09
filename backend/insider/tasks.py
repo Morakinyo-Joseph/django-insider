@@ -3,7 +3,7 @@ from celery import shared_task
 from datetime import timedelta
 from django.db import transaction, models
 from django.utils import timezone
-from .models import Footprint, Issue
+from .models import Footprint, Incidence
 from .utils import generate_fingerprint
 from .registry import get_active_publishers, get_active_notifiers
 from .settings import settings as insider_settings
@@ -35,35 +35,45 @@ def save_footprint_task(footprint_data: dict):
                 title = f"Error {footprint.status_code} at {footprint.request_path}"
 
             # Aggregate
-            issue, created = Issue.objects.get_or_create(
+            incidence, created = Incidence.objects.get_or_create(
                 fingerprint=fingerprint_hash,
                 defaults={'title': title}
             )
 
-            footprint.issue = issue
-            footprint.save(update_fields=['issue'])
+            footprint.incidence = incidence
+            footprint.save(update_fields=['incidence'])
+
+            # update count and last seen for this incidence instance
+            if not created:
+                Incidence.objects.filter(id=incidence.id).update(
+                    occurrence_count=models.F('occurrence_count') + 1,
+                    last_seen=timezone.now()
+                )
+
+                incidence.refresh_from_db()
 
             should_notify = False
+
             if created:
                 should_notify = True
 
-            # Recurring Issue
+            # Recurring Incidence
             else:
-                # Notify if issue was already marked resolved.
-                if issue.status == 'RESOLVED':
-                    issue.status = 'OPEN'
-                    issue.save(update_fields=['status'])
+                # Notify if incidence was already marked resolved.
+                if incidence.status == 'RESOLVED':
+                    incidence.status = 'OPEN'
+                    incidence.save(update_fields=['status'])
                     should_notify = True
 
                 # Notify if the cooldown has passed.
                 else:
-                    time_since_notification = timezone.now() - issue.last_notified
+                    time_since_notification = timezone.now() - incidence.last_notified
                     if time_since_notification > timedelta(hours=insider_settings.COOLDOWN_HOURS):
                         should_notify = True
 
             if should_notify:
-                issue.last_notified = timezone.now()
-                issue.save(update_fields=["last_notified"])
+                incidence.last_notified = timezone.now()
+                incidence.save(update_fields=["last_notified"])
 
                 shared_context = {}
             
@@ -83,13 +93,7 @@ def save_footprint_task(footprint_data: dict):
                         notifier.notify(footprint, context=shared_context)
                     except Exception as e:
                         logger.error(f"INSIDER: Notifier failed: {e}")
-
-            else:
-                # aggregate silently
-                Issue.objects.filter(id=issue.id).update(
-                    occurrence_count=models.F('occurrence_count') + 1,
-                    last_seen=models.functions.Now()
-                )            
+          
 
     except Exception as e:
         logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)

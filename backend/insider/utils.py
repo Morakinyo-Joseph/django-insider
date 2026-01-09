@@ -61,7 +61,7 @@ def generate_fingerprint(footprint_data: dict) -> str:
 
     else:
         # NOTE: Normalize paths (e.g. replace IDs with {id})
-        # to prevent /user2/1 and /users/2 creating different issues
+        # to prevent /user2/1 and /users/2 creating different incidences
         identify_string = f"{status}|{path}"
 
     return hashlib.md5(identify_string.encode('utf-8')).hexdigest()
