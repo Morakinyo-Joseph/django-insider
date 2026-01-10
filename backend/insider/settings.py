@@ -26,6 +26,7 @@ import warnings
 # Django must be available at runtime for this package to be used.
 try:
     from django.conf import settings as django_settings
+    from django.apps import apps
 except Exception: 
     django_settings = None
 
@@ -81,6 +82,28 @@ class InsiderSettings:
         return d
 
 
+def _load_db_overrides() -> Dict[str, Any]:
+    """
+    Attempts to fetch configuration overrides from the InsiderSetting model.
+    Fails silently if the DB is not ready (e.g. during migration or startup).
+    """
+
+    db_config = {}
+    try:
+        InsiderSetting = apps.get_model('insider', 'InsiderSetting')
+        for setting in InsiderSetting.objects.all().iterator():
+            db_config[setting.key] = setting.value
+
+    except Exception:
+        # Catches:
+        # - OperationalError/ProgrammingError (Table doesn't exist yet)
+        # - AppRegistryNotReady (If called too early)
+        # - ConnectionError (If DB is down)
+        return {}
+    
+    return db_config
+
+
 def _load_user_config() -> Dict[str, Any]:
     """
     Loads configuration from the Django settings module.
@@ -107,6 +130,10 @@ def _load_user_config() -> Dict[str, Any]:
         setting_name = f"INSIDER_{key}"
         if hasattr(django_settings, setting_name):
             cfg[key] = getattr(django_settings, setting_name)
+
+    # 3) Database Overrides (Highest Priority)
+    db_overrides = _load_db_overrides()
+    cfg.update(db_overrides)
 
     return cfg
 
@@ -259,7 +286,7 @@ def _build_settings() -> InsiderSettings:
 try:
     settings = _build_settings()
 except Exception as exc:
-    warnings.warn(f"Failed to build INSIDER settings, using defaults. Error: {exc}")
+    warnings.warn(f"Using default INSIDER settings (DB/Env not ready)   : {exc}")
     settings = InsiderSettings()
     settings._raw = {}
 
@@ -280,7 +307,7 @@ def reload_settings() -> None:
 
 def get(key: str, default: Any = None) -> Any:
     """
-    Convenience accessor: insider.settings.get("MAX_RESPONSE_LENGTH")
+    Convenience accessor: e.g insider.settings.get("MAX_RESPONSE_LENGTH")
     """
     return getattr(settings, key, settings._raw.get(key, default))
 

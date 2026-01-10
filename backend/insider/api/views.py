@@ -8,10 +8,12 @@ from rest_framework.views import APIView
 from rest_framework.mixins import UpdateModelMixin, ListModelMixin, RetrieveModelMixin
 from rest_framework.viewsets import GenericViewSet
 
-from insider.models import Incidence, Footprint
+from insider.models import Incidence, Footprint, InsiderSetting
+from insider.settings import DEFAULTS, reload_settings
 from .serializers import (
     IncidenceListSerializer, IncidenceDetailSerializer,
-    FootprintListSerializer, FootprintDetailSerializer
+    FootprintListSerializer, FootprintDetailSerializer,
+    InsiderSettingSerializer
 )
 
 class IncidenceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -164,3 +166,54 @@ class DashboardStatsView(APIView):
             },
             "top_offenders": top_incidences_data
         })
+    
+
+class SettingsViewSet(viewsets.ModelViewSet):
+    """
+    Powers the 'Settings' page.
+    Allows dynamic configuration of the package behavior.
+    """
+
+    queryset = InsiderSetting.objects.all().order_by('key')
+    serializer_class = InsiderSettingSerializer
+    permission_classes = [permissions.AllowAny] # NOTE: In production restrict this
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def list(self, request, *args, **kwargs):
+        """
+        Auto-Discovery: If settings table is empty, populate it with DEFAULTS.
+        This ensures the UI is never empty on first install.
+        """
+        
+        if not self.get_queryset().exists():
+            new_settings = []
+            
+            for key, default_val in DEFAULTS.items():
+                # Inference Logic for Field Type
+                f_type = 'STRING'
+                if isinstance(default_val, bool):
+                    f_type = 'BOOLEAN'
+                elif isinstance(default_val, int) or default_val is None:
+                    f_type = 'INTEGER'
+                elif isinstance(default_val, list):
+                    f_type = 'LIST'
+                
+                new_settings.append(InsiderSetting(
+                    key=key,
+                    value=default_val,
+                    field_type=f_type,
+                    description=f"Controls {key.replace('_', ' ').lower()}"
+                ))
+            
+            # Bulk Create for efficiency
+            InsiderSetting.objects.bulk_create(new_settings)
+            
+        return super().list(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        """
+        After saving to DB, force the system to reload config 
+        so changes apply immediately without restart.
+        """
+        serializer.save()
+        reload_settings()

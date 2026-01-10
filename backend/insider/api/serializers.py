@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from insider.models import Incidence, Footprint
+from insider.models import Incidence, Footprint, InsiderSetting
 
 
 class FootprintListSerializer(serializers.ModelSerializer):
@@ -45,3 +45,13 @@ class IncidenceDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Incidence
         fields = '__all__'
+
+
+class InsiderSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InsiderSetting
+        fields = [
+            'id', 'key', 'value', 'field_type', 
+            'description', 'updated_at'
+        ]
+        read_only_fields = ['key', 'field_type', 'description']

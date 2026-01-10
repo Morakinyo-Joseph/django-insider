@@ -78,7 +78,7 @@ class SlackNotifier(BaseNotifier):
 
         blocks = [
             {"type": "header", "text": {"type": "plain_text", "text": header_text}},
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"<!channel> {section_text}"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"<!morakinyo> {section_text}"}},
 
             {"type": "divider"},
 
@@ -119,7 +119,7 @@ class SlackNotifier(BaseNotifier):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"✅ An incidence has been automatically created in *{published_service}*."
+                    "text": f"✅ An issue has been automatically created in *{published_service}*."
                 },
                 "accessory": {
                     "type": "button",
@@ -128,7 +128,7 @@ class SlackNotifier(BaseNotifier):
                         "text": f"View on {published_service}"
                     },
                     "url": published_url,
-                    "action_id": "view_external_incidence"
+                    "action_id": "view_external_issue"
                 },  
             })
 

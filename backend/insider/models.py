@@ -1,4 +1,5 @@
 from django.db import models
+from django.forms import JSONField
 
 
 class Incidence(models.Model):
@@ -133,5 +134,52 @@ class Footprint(models.Model):
 
     def __str__(self):
         return f"[{self.request_id}] {self.request_method.upper()} {self.request_path} -> {self.status_code}"    
+
+
+
+
+
+class InsiderSetting(models.Model):
+    """
+    Insider setting configuration for default values.
+    """
+
+    FIELD_TYPE_CHOICES = (
+        ("BOOLEAN", 'Toggle Switch'),
+        ("LIST", 'Tag Input'),
+        ("INTEGER", 'Number Input'),
+        ("STRING", 'Text Input'),
+    )
+
+    key = models.CharField(
+        max_length=255, 
+        unique=True, 
+        help_text="The setting name in settings.py"
+    )
+    value = models.JSONField(null=True, blank=True)
+    field_type = models.CharField(
+        max_length=20, 
+        choices=FIELD_TYPE_CHOICES,
+        default="STRING"
+    )
+    description = models.TextField(
+        blank=True, 
+        help_text="Explanation shown to the user"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.key} ({self.value})"
+    
+
+
+
+
+
+
+
+
+
+
 
 
