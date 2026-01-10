@@ -51,3 +51,11 @@ export interface Footprint {
   db_query_count?: number;
   incidence?: number;
 }
+
+export interface InsiderSetting {
+  id: number;
+  key: string;
+  value: any;
+  field_type: 'BOOLEAN' | 'INTEGER' | 'LIST' | 'STRING';
+  description: string;
+}

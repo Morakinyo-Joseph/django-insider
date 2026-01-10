@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "./layout/DashboardLayout";
+import Settings from "./pages/Settings";
 
 // Import Pages
 import Dashboard from "./pages/Dashboard";
@@ -22,6 +23,7 @@ function App() {
             <Route path="/incidences" element={<Incidence />} />
             <Route path="/incidences/:incidenceId" element={<InvestigationRoom />} />
             <Route path="/footprints/:footprintId" element={<ForensicsLab />} />
+            <Route path="/settings" element={<Settings />} />
             
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

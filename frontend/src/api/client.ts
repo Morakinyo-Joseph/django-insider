@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { DashboardStats, Incidence, Footprint } from '../types';
+import { DashboardStats, Incidence, Footprint, InsiderSetting } from '../types';
 
 // Detect environment: Dev (localhost:8000) vs Prod (Relative path)
 const BASE_URL = import.meta.env.DEV 
@@ -60,4 +60,16 @@ export const fetchFootprint = async (id: string): Promise<Footprint> => {
 export const fetchFootprintBreadcrumbs = async (id: string): Promise<Footprint[]> => {
   const response = await apiClient.get(`footprints/${id}/breadcrumbs/`);
   return response.data;
+};
+
+// 7. Get All Settings
+export const fetchSettings = async (): Promise<InsiderSetting[]> => {
+  const response = await apiClient.get('settings/');
+  return response.data;
+};
+
+// 8. Update a Setting
+export const updateSetting = async (id: number, value: any): Promise<void> => {
+  // We patch just the 'value' field
+  await apiClient.patch(`settings/${id}/`, { value });
 };
