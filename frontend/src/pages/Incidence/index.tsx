@@ -1,14 +1,55 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchIncidences } from "../../api/client";
-import { Search, Filter, ArrowUpDown, User } from "lucide-react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchIncidences, bulkResolveIncidences, bulkIgnoreIncidences } from "../../api/client";
+import { Search, Filter, ArrowUpDown, User, Check, XCircle, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Incidence() {
+  const queryClient = useQueryClient();
+  
+  // State for Filtering and Selection
+  const [activeFilter, setActiveFilter] = useState<string>(""); // '' | 'new' | 'regressions'
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  // Fetch Data with Filter
   const { data: incidences, isLoading } = useQuery({
-    queryKey: ["incidences"],
-    queryFn: fetchIncidences,
+    queryKey: ["incidences", activeFilter],
+    queryFn: () => fetchIncidences(activeFilter),
   });
+
+  // Bulk Resolve Mutation
+  const resolveMutation = useMutation({
+    mutationFn: bulkResolveIncidences,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidences"] });
+      setSelectedIds([]); // Clear selection
+    },
+  });
+
+  // Bulk Ignore Mutation
+  const ignoreMutation = useMutation({
+    mutationFn: bulkIgnoreIncidences,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidences"] });
+      setSelectedIds([]); // Clear selection
+    },
+  });
+
+  // Handlers
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked && incidences) {
+      setSelectedIds(incidences.map(i => i.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
   if (isLoading) return <div className="p-8 text-gray-500">Loading incidences...</div>;
 
@@ -30,17 +71,68 @@ export default function Incidence() {
               className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">
-            <Filter size={16} />
-            Filter
-          </button>
+          
+          {/* Filter Dropdown Logic (Simplified as buttons for now) */}
+          <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
+             <button 
+               onClick={() => setActiveFilter("")}
+               className={`px-3 py-2 text-xs font-medium ${activeFilter === "" ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50"}`}
+             >
+               All
+             </button>
+             <button 
+               onClick={() => setActiveFilter("new")}
+               className={`px-3 py-2 text-xs font-medium border-l border-gray-200 ${activeFilter === "new" ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50"}`}
+             >
+               New
+             </button>
+             <button 
+               onClick={() => setActiveFilter("regressions")}
+               className={`px-3 py-2 text-xs font-medium border-l border-gray-200 ${activeFilter === "regressions" ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50"}`}
+             >
+               Regressions
+             </button>
+          </div>
         </div>
       </div>
+
+      {/* ACTION BAR: Appears when items are selected */}
+      {selectedIds.length > 0 && (
+        <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+          <span className="text-sm font-semibold text-indigo-900 pl-2">
+            {selectedIds.length} selected
+          </span>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => resolveMutation.mutate(selectedIds)}
+              disabled={resolveMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-xs font-medium rounded shadow-sm hover:bg-indigo-100"
+            >
+              <Check size={14} /> Resolve
+            </button>
+            <button 
+              onClick={() => ignoreMutation.mutate(selectedIds)}
+              disabled={ignoreMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded shadow-sm hover:bg-gray-50"
+            >
+              <XCircle size={14} /> Ignore
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+              <th className="px-6 py-4 w-4">
+                 <input 
+                   type="checkbox" 
+                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                   onChange={handleSelectAll}
+                   checked={incidences && incidences.length > 0 && selectedIds.length === incidences.length}
+                 />
+              </th>
               <th className="px-6 py-4">Incidence Details</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 flex items-center gap-1">
@@ -52,7 +144,18 @@ export default function Incidence() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {incidences?.map((incidence) => (
-              <tr key={incidence.id} className="hover:bg-slate-50/50 transition-colors group">
+              <tr 
+                key={incidence.id} 
+                className={`transition-colors group ${selectedIds.includes(incidence.id) ? "bg-indigo-50/40" : "hover:bg-slate-50/50"}`}
+              >
+                <td className="px-6 py-4">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={selectedIds.includes(incidence.id)}
+                    onChange={() => handleSelectRow(incidence.id)}
+                  />
+                </td>
                 <td className="px-6 py-4">
                   <Link to={`/incidences/${incidence.id}`} className="block group-hover:translate-x-1 transition-transform">
                     <div className="font-semibold text-gray-900 text-sm truncate max-w-lg">
@@ -65,7 +168,9 @@ export default function Incidence() {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                    incidence.status === 'OPEN' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'
+                    incidence.status === 'OPEN' ? 'bg-red-50 text-red-600 border border-red-100' : 
+                    incidence.status === 'RESOLVED' ? 'bg-green-50 text-green-600 border border-green-100' :
+                    'bg-gray-100 text-gray-600 border border-gray-200'
                   }`}>
                     {incidence.status}
                   </span>

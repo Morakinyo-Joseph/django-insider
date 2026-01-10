@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFootprint, fetchFootprintBreadcrumbs } from "../../api/client";
-import { ChevronLeft, Database, Clock, Server, ArrowDownLeft, ArrowUpRight, Activity, Terminal } from "lucide-react";
+import { ChevronLeft, Database, Clock, Server, ArrowDownLeft, ArrowUpRight, Activity, Terminal, Copy } from "lucide-react"; // ADDED: Copy Icon
 import { formatDistanceToNow } from "date-fns";
 
 export default function ForensicsLab() {
@@ -22,6 +22,30 @@ export default function ForensicsLab() {
   if (!footprint) return <div className="p-8 text-red-600">Request trace not found.</div>;
 
   const isError = footprint.status_code >= 400;
+
+  // ADDED: Replay Station Logic
+  const handleCopyCurl = () => {
+    let cmd = `curl -X ${footprint.request_method} "${footprint.request_path}"`;
+    
+    // Add Headers
+    if (footprint.request_headers) {
+      Object.entries(footprint.request_headers).forEach(([key, val]) => {
+         // Cast val to string just in case
+         cmd += ` \\\n  -H "${key}: ${String(val)}"`;
+      });
+    }
+
+    // Add Body
+    if (footprint.request_body && Object.keys(footprint.request_body).length > 0) {
+      // Escape single quotes for shell
+      const bodyStr = JSON.stringify(footprint.request_body).replace(/'/g, "'\\''");
+      cmd += ` \\\n  -H "Content-Type: application/json"`;
+      cmd += ` \\\n  -d '${bodyStr}'`;
+    }
+
+    navigator.clipboard.writeText(cmd);
+    alert("cURL command copied to clipboard!");
+  };
 
   return (
     <div className="space-y-6">
@@ -60,9 +84,18 @@ export default function ForensicsLab() {
           
           {/* Request Body */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-              <ArrowUpRight size={16} className="text-blue-500" />
-              <h3 className="text-xs font-bold text-gray-700 uppercase">Request Payload</h3>
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ArrowUpRight size={16} className="text-blue-500" />
+                <h3 className="text-xs font-bold text-gray-700 uppercase">Request Payload</h3>
+              </div>
+              {/* ADDED: Replay Button */}
+              <button 
+                onClick={handleCopyCurl}
+                className="flex items-center gap-1 text-[10px] bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100 text-gray-700 font-medium"
+              >
+                <Copy size={12} /> Copy as cURL
+              </button>
             </div>
             <div className="p-0">
               <JsonViewer data={footprint.request_body} />
@@ -114,7 +147,12 @@ export default function ForensicsLab() {
                 <div className="flex items-center gap-2 text-gray-500">
                   <Database size={14}/> <span>DB Queries</span>
                 </div>
-                <span className="font-mono font-semibold text-gray-800">{footprint.db_query_count}</span>
+                {/* Visual indicator for N+1 */}
+                <span className={`font-mono font-semibold ${
+                   (footprint.db_query_count || 0) > 50 ? 'text-red-600' : 'text-gray-800'
+                }`}>
+                    {footprint.db_query_count}
+                </span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2 text-gray-500">
@@ -137,7 +175,7 @@ export default function ForensicsLab() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
              <div className="p-4 border-b border-gray-100 bg-amber-50/50">
               <h3 className="text-xs font-bold text-amber-900 uppercase flex items-center gap-2">
-                <Activity size={14} /> User Trail (Last 5 min)
+                <Activity size={14} /> User Footprints (Last 5 min)
               </h3>
             </div>
             <div className="divide-y divide-gray-100">

@@ -21,10 +21,21 @@ export const fetchDashboardStats = async (): Promise<DashboardStats> => {
   return response.data;
 };
 
-// 2. Incidence List (Incidence)
-export const fetchIncidences = async (): Promise<Incidence[]> => {
-  const response = await apiClient.get('incidences/');
+// 2. Incidence List (Modified to support Filters)
+export const fetchIncidences = async (filter?: string): Promise<Incidence[]> => {
+  // If filter is present, append it to query params
+  const params = filter ? { filter } : {};
+  const response = await apiClient.get('incidences/', { params });
   return response.data;
+};
+
+// 2b. Bulk Actions (New)
+export const bulkResolveIncidences = async (ids: number[]): Promise<void> => {
+  await apiClient.post('incidences/bulk_resolve/', { ids });
+};
+
+export const bulkIgnoreIncidences = async (ids: number[]): Promise<void> => {
+  await apiClient.post('incidences/bulk_ignore/', { ids });
 };
 
 // 3. Incidence Detail (Investigation Room - Main Data)

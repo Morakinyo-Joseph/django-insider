@@ -35,6 +35,8 @@ class Incidence(models.Model):
         blank=True
     )
 
+    created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
         return f"{self.title} ({self.occurrence_count})"
 
@@ -122,8 +124,7 @@ class Footprint(models.Model):
         null=True,
         blank=True
     )
-    stack_trace = models.JSONField(null=True, blank=True
-                                   )
+    stack_trace = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Footprint"

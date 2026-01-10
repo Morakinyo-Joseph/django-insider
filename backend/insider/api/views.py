@@ -5,6 +5,8 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.mixins import UpdateModelMixin, ListModelMixin, RetrieveModelMixin
+from rest_framework.viewsets import GenericViewSet
 
 from insider.models import Incidence, Footprint
 from .serializers import (
@@ -19,19 +21,57 @@ class IncidenceViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        """
-        # OPTIMIZATION: Calculate 'users_affected' in the database (SQL GROUP BY)
-        # to avoid the N+1 query problem when listing 50 incidences.
-        """
-
-        return Incidence.objects.annotate(
+        qs = Incidence.objects.annotate(
             users_affected=Count('footprint__request_user', distinct=True)
         ).order_by('-last_seen')
+
+        filter_type = self.request.query_params.get("filter")
+
+        # filter by incidences created in the last hour
+        if filter_type == "new":
+            one_hour_ago = timezone.now() - timedelta(hours=1)
+            qs = qs.filter(created_at__gte=one_hour_ago)
+
+        # filter by incidences with high occurence counts.
+        if filter_type == "regressions":
+            qs = qs.filter(status='OPEN', occurrence_count__gt=1)
+        
+        return qs 
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return IncidenceDetailSerializer
         return IncidenceListSerializer
+    
+    @action(detail=False, methods=['post'])
+    def bulk_resolve(self, request):
+        """
+        Receives: { "ids": [1, 2, 5] }
+        Action: Sets status='RESOLVED' for all those IDs.
+        """
+
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({"error": "No IDs provided"}, status=400)
+        
+        count = Incidence.objects.filter(id__in=ids).update(status='RESOLVED')
+        return Response({"message": f"Resolved {count} incidence"}, status=200)
+    
+
+    @action(detail=False, methods=['post'])
+    def bulk_ignore(self, request):
+        """
+        Receives: { "ids": [1, 2, 5] }
+        Action: Sets status='IGNORED' for all those IDs.
+        """
+
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({"error": "No IDs provided"}, status=400)
+        
+        count = Incidence.objects.filter(id__in=ids).update(status='IGNORED')
+        return Response({"message": f"Ignored {count} incidence"}, status=200)
+
 
     @action(detail=True, methods=['get'])
     def footprints(self, request, pk=None):

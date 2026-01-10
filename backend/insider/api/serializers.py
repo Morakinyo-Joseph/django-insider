@@ -33,7 +33,8 @@ class IncidenceListSerializer(serializers.ModelSerializer):
         model = Incidence
         fields = [
             'id', 'title', 'status', 'occurrence_count', 
-            'first_seen', 'last_seen', 'users_affected'
+            'first_seen', 'last_seen', 'users_affected', 
+            'created_at'
         ]
 
 class IncidenceDetailSerializer(serializers.ModelSerializer):
