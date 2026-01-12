@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchSettings, updateSetting, InsiderSetting } from "../../api/client";
-import { Save, AlertCircle, ToggleLeft, ToggleRight, Check } from "lucide-react";
+import { fetchSettings, updateSetting  } from "../../api/client";
+import { Save, ToggleLeft, ToggleRight } from "lucide-react";
+import type { InsiderSetting } from "../../types";
 
 export default function Settings() {
   const queryClient = useQueryClient();

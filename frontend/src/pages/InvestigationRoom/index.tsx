@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchIncidenceDetail, fetchIncidenceFootprints } from "../../api/client";
 import { ChevronLeft, Clock, Globe, ShieldAlert, Terminal } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import type { StackFrame } from '../../types';
 
 export default function InvestigationRoom() {
   const { incidenceId } = useParams();
@@ -76,7 +77,7 @@ export default function InvestigationRoom() {
 
                 return (
                   <div className="space-y-1">
-                    {traceSample.stack_trace.map((frame, index) => {
+                    {traceSample?.stack_trace?.map((frame: StackFrame, index: number) => {
                       // Check if it is a system file (venv or site-packages)
                       const isSystemFile = frame.file.includes('site-packages') || frame.file.includes('venv');
                       

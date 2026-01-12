@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardStats } from "../../api/client";
 import { Activity, AlertTriangle, Users, Clock, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import type { Incidence } from "../../types";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery({
@@ -80,7 +81,7 @@ export default function Dashboard() {
                   </td>
                 </tr>
               ) : (
-                data.top_offenders.map((incidence) => (
+                data.top_offenders.map((incidence: Incidence) => (
                   <tr key={incidence.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-900 truncate max-w-md">
                       <Link to={`/incidences/${incidence.id}`} className="hover:underline">

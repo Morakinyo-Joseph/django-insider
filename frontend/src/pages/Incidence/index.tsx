@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchIncidences, bulkResolveIncidences, bulkIgnoreIncidences } from "../../api/client";
-import { Search, Filter, ArrowUpDown, User, Check, XCircle, Trash2 } from "lucide-react";
+import { Search, ArrowUpDown, User, Check, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 

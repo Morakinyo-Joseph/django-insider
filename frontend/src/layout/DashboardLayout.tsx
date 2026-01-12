@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { LayoutDashboard, Inbox, Activity, Settings } from "lucide-react";
+import { LayoutDashboard, Inbox, Settings } from "lucide-react";
 
 export function DashboardLayout() {
   return (

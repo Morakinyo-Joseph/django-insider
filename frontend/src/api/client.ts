@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { DashboardStats, Incidence, Footprint, InsiderSetting } from '../types';
+import type { DashboardStats, Incidence, Footprint, InsiderSetting } from '../types';
 
 // Detect environment: Dev (localhost:8000) vs Prod (Relative path)
 const BASE_URL = import.meta.env.DEV 
