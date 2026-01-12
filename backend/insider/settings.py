@@ -18,6 +18,7 @@ Behavior:
 - Safe to import from anywhere inside the package.
 """
 
+import sys
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, Iterable, List, Optional
 import warnings
@@ -50,6 +51,10 @@ DEFAULTS: Dict[str, Any] = {
     "PUBLISHERS": [],
     "NOTIFIERS": [],
     "COOLDOWN_HOURS": 24,
+    "ENABLE_DAILY_REPORT": True,
+    "DAILY_REPORT_EMAILS": [],     # List of strings: ["admin@example.com"]
+    "DAILY_REPORT_TIME": "09:00",  # "HH:MM" format (24h)
+    "DATA_RETENTION_DAYS": 30,     # Delete data older than X days (0 to disable)   
 }
 
 
@@ -72,6 +77,10 @@ class InsiderSettings:
     PUBLISHERS: List[str] = field(default_factory=lambda: DEFAULTS["PUBLISHERS"][:])
     NOTIFIERS: List[str] = field(default_factory=lambda: DEFAULTS["NOTIFIERS"][:])
     COOLDOWN_HOURS: int = DEFAULTS["COOLDOWN_HOURS"]
+    ENABLE_DAILY_REPORT: bool = DEFAULTS["ENABLE_DAILY_REPORT"]
+    DAILY_REPORT_EMAILS: List[str] = field(default_factory=lambda: DEFAULTS["DAILY_REPORT_EMAILS"][:])
+    DAILY_REPORT_TIME: str = DEFAULTS["DAILY_REPORT_TIME"]
+    DATA_RETENTION_DAYS: int = DEFAULTS["DATA_RETENTION_DAYS"]
 
     # Additional raw dict copy for introspection if needed
     _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
@@ -88,6 +97,10 @@ def _load_db_overrides() -> Dict[str, Any]:
     Fails silently if the DB is not ready (e.g. during migration or startup).
     """
 
+    # prevents the "RuntimeWarning: Accessing the database during app initialization
+    if any(x in sys.argv for x in ['makemigrations', 'migrate', 'showmigrations']):
+        return {}
+    
     db_config = {}
     try:
         InsiderSetting = apps.get_model('insider', 'InsiderSetting')
@@ -260,6 +273,26 @@ def _validate_and_normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
         cleaned_methods.append(upper)
 
     cleaned["CAPTURE_METHODS"] = cleaned_methods
+
+
+    # DAILY_REPORT_EMAILS
+    emails = raw.get("DAILY_REPORT_EMAILS", DEFAULTS["DAILY_REPORT_EMAILS"])
+    if isinstance(emails, str):
+        emails = [s.strip() for s in emails.split(",") if s.strip()]
+    cleaned["DAILY_REPORT_EMAILS"] = [str(e) for e in emails]
+
+
+    # DAILY_REPORT_TIME
+    time_str = str(raw.get("DAILY_REPORT_TIME", DEFAULTS["DAILY_REPORT_TIME"]))
+    # Simple validation for HH:MM
+    if len(time_str) == 5 and ":" in time_str:
+        cleaned["DAILY_REPORT_TIME"] = time_str
+    else:
+        cleaned["DAILY_REPORT_TIME"] = "09:00" # Fallback
+
+    # DATA_RETENTION_DAYS
+    drd = raw.get("DATA_RETENTION_DAYS", DEFAULTS["DATA_RETENTION_DAYS"])
+    cleaned["DATA_RETENTION_DAYS"] = int(drd) if drd is not None else 30
 
 
     # store full raw data for debugging.

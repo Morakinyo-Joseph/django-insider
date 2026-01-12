@@ -1,5 +1,6 @@
 import logging
 from celery import shared_task
+from celery.schedules import crontab
 from datetime import timedelta
 from django.db import transaction, models
 from django.utils import timezone
@@ -7,6 +8,7 @@ from .models import Footprint, Incidence
 from .utils import generate_fingerprint
 from .registry import get_active_publishers, get_active_notifiers
 from .settings import settings as insider_settings
+from .services.email import EmailManager
 
 logger = logging.getLogger(__name__)
 
@@ -97,3 +99,67 @@ def save_footprint_task(footprint_data: dict):
 
     except Exception as e:
         logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)
+
+
+@shared_task
+def daily_report_task():
+    """
+    Generates statistics for the last 24 hours and sends an email.
+    """
+
+    if not insider_settings.ENABLE_DAILY_REPORT:
+        return "Daily Report Disabled"
+
+    now = timezone.now()
+    yesterday = now - timedelta(hours=24)
+    
+    # Gather Stats
+    new_incidences = Incidence.objects.filter(created_at__gte=yesterday).count()
+    resolved_incidences = Incidence.objects.filter(status='RESOLVED', updated_at__gte=yesterday).count()
+    
+    footprints = Footprint.objects.filter(created_at__gte=yesterday)
+    errors_500 = footprints.filter(status_code__gte=500).count()
+    
+    top_offenders_qs = Incidence.objects.filter(
+        footprint__created_at__gte=yesterday
+    ).annotate(
+        daily_count=models.Count('footprint')
+    ).order_by('-daily_count')[:5]
+
+    top_offenders = [
+        {'title': inc.title, 'count': inc.daily_count} 
+        for inc in top_offenders_qs
+    ]
+
+    context = {
+        'date': now.strftime('%Y-%m-%d'),
+        'new_issues': new_incidences,
+        'resolved': resolved_incidences,
+        'errors_500': errors_500,
+        'top_offenders': top_offenders
+    }
+
+    # Send Email
+    manager = EmailManager()
+    manager.send_daily_report(context)
+    
+    return f"Report sent to {len(manager.recipients)} recipients"
+
+
+@shared_task
+def cleanup_old_data_task():
+    """
+    Deletes footprints older than the configured retention days.
+    """
+
+    days = insider_settings.DATA_RETENTION_DAYS
+    if days <= 0:
+        return "Cleanup Disabled (Days=0)"
+
+    cutoff = timezone.now() - timedelta(days=days)
+    
+    count, _ = Footprint.objects.filter(created_at__lt=cutoff).delete()
+    
+    # NOTE: Clean up Incidences that have 0 footprints left?
+    
+    return f"Cleaned up {count} old footprint records."
