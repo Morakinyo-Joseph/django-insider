@@ -1,6 +1,6 @@
 [project]
 name = "django-insider"
-version = "0.1.0"
+version = "0.1.2"
 description = "A Django middleware and logging package for monitoring requests and responses."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -9,29 +9,30 @@ authors = [
     {name = "Morakinyo Joseph", email = "jmoraks03@gmail.com"}
 ]
 
-keywords = ["django", "middleware", "logging", "request", "response", "monitoring"]
+keywords = ["django", "middleware", "monitoring", "performance", "celery", "react"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: Django",
     "Framework :: Django :: 3.2",
     "Framework :: Django :: 4.0",
     "Framework :: Django :: 4.1",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
     "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Operating System :: OS Independent"
 ]
 dependencies = [
-    "Django>=3.2"
+    "Django>=3.2,<6.0",
+    "djangorestframework>=3.12",
+    "celery>=5.0",
+    "atlassian-python-api>=4.0.7"
 ]
 
 [project.urls]
 Homepage = "https://github.com/Morakinyo-Joseph/django-insider"
 Repository = "https://github.com/Morakinyo-Joseph/django-insider"
-Documentation = "https://github.com/Morakinyo-Joseph/django-insider#readme"
+Documentation = "https://docs.google.com/document/d/1PnWshYnUwgQjzD5EDiG-HfkE37YIDSDdyvGJyhv2lM4/edit?tab=t.0"
 
 [build-system]
 requires = ["setuptools>=65.5.0", "wheel"]
@@ -39,7 +40,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["insider"]
+include = ["insider*"]
+exclude = ["config*", "tests*", "venv*"]
 
 [tool.setuptools.package-data]
-"insider" = ["migrations/*.py", "templates/**/*", "static/**/*"]
+insider = [
+    "static/insider/index.html",
+    "static/insider/assets/*",
+    "templates/**/*",
+    "migrations/**/*"
+]

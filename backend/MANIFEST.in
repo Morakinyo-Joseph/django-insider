@@ -1,0 +1,11 @@
+include LICENSE
+include README.md
+recursive-include insider/static *
+recursive-include insider/templates *
+recursive-include insider/migrations *
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude db.sqlite3
+exclude manage.py
+prune config
+prune venv

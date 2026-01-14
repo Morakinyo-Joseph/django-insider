@@ -1,12 +1,10 @@
 from datetime import timedelta
-from django.db.models import Count, Avg, Q
+from django.db.models import Count, Avg
 from django.utils import timezone
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.mixins import UpdateModelMixin, ListModelMixin, RetrieveModelMixin
-from rest_framework.viewsets import GenericViewSet
 
 from insider.models import Incidence, Footprint, InsiderSetting
 from insider.settings import DEFAULTS, reload_settings
@@ -16,11 +14,18 @@ from .serializers import (
     InsiderSettingSerializer
 )
 
+
+
+class IsStaff(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and request.user.is_staff
+    
+
 class IncidenceViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Powers the 'Incidence' and 'Deep Dive' rooms.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsStaff]
 
     def get_queryset(self):
         qs = Incidence.objects.annotate(
@@ -94,7 +99,7 @@ class FootprintViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     queryset = Footprint.objects.all().order_by('-created_at')
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsStaff]
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -132,7 +137,7 @@ class DashboardStatsView(APIView):
     Powers the 'Dashboard' (Home Page).
     Returns Velocity metrics and Health Cards.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsStaff]
 
     def get(self, request):
         now = timezone.now()
@@ -176,7 +181,7 @@ class SettingsViewSet(viewsets.ModelViewSet):
 
     queryset = InsiderSetting.objects.all().order_by('key')
     serializer_class = InsiderSettingSerializer
-    permission_classes = [permissions.AllowAny] # NOTE: In production restrict this
+    permission_classes = [IsStaff]
     http_method_names = ['get', 'patch', 'head', 'options']
 
     def list(self, request, *args, **kwargs):
