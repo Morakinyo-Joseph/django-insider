@@ -3,8 +3,7 @@ import react from '@vitejs/plugin-react-swc';
 
 export default defineConfig({
   plugins: [react()],
-  // base: './',
-  base: '/static/insider/',
+  base: './',
   build: {
     // Build directly into the Python package
     outDir: '../backend/insider/static/insider',
