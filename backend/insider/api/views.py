@@ -26,6 +26,7 @@ class IncidenceViewSet(viewsets.ReadOnlyModelViewSet):
     Powers the 'Incidence' and 'Deep Dive' rooms.
     """
     permission_classes = [IsStaff]
+    pagination_class = None
 
     def get_queryset(self):
         qs = Incidence.objects.annotate(
@@ -100,6 +101,7 @@ class FootprintViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Footprint.objects.all().order_by('-created_at')
     permission_classes = [IsStaff]
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -138,6 +140,7 @@ class DashboardStatsView(APIView):
     Returns Velocity metrics and Health Cards.
     """
     permission_classes = [IsStaff]
+    pagination_class = None
 
     def get(self, request):
         now = timezone.now()
@@ -182,6 +185,7 @@ class SettingsViewSet(viewsets.ModelViewSet):
     queryset = InsiderSetting.objects.all().order_by('key')
     serializer_class = InsiderSettingSerializer
     permission_classes = [IsStaff]
+    pagination_class = None
     http_method_names = ['get', 'patch', 'head', 'options']
 
     def list(self, request, *args, **kwargs):
