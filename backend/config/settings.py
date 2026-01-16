@@ -11,9 +11,13 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
+environ.Env.read_env('.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -85,6 +89,27 @@ DATABASES = {
     }
 }
 
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env("DB_NAME", default=''),
+        'USER': env("DB_USER", default=''),
+        'PASSWORD': env("DB_PASS", default=''),
+        'HOST': env("DB_HOST", default=''),
+        'PORT': env("DB_PORT", default=''),
+    },
+    'insider': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env("INSIDER_DB_NAME", default=''),
+        'USER': env("INSIDER_DB_USER", default=''),
+        'PASSWORD': env("INSIDER_DB_PASS", default=''),
+        'HOST': env("INSIDER_DB_HOST", default=''),
+        'PORT': env("INSIDER_DB_PORT", default=''),
+    }
+}
+
+DATABASE_ROUTERS = ['insider.db_router.InsiderRouter']
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -204,6 +229,14 @@ LOGGING = {
     },
 }
 
+# Disable migrations for faster testing
+class DisableMigrations:
+    def __contains__(self, item):
+        return True
+
+    def __getitem__(self, item):
+        return None
+
 
 
 INSIDER = {
@@ -213,3 +246,4 @@ INSIDER = {
 
 INSIDER_CAPTURE_REQUEST_BODY = True
 INSIDER_CAPTURE_RESPONSE = True
+INSIDER_DB_ALIAS = "insider"

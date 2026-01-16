@@ -1,14 +1,14 @@
-from insider import settings as insider_settings
+from insider.settings import settings as insider_settings
 
-class FootprintRouter:
+class InsiderRouter:
     """
     A router to control all database operations for models in the 'insider' 
-    application (where Footprint resides), directing them to the configured DB_ALIAS.
+    application (where Insider resides), directing them to the configured DB_ALIAS.
     """
 
     route_app_labels = {'insider'}
 
-    FOOTPRINT_DB_ALIAS = insider_settings.DB_ALIAS
+    INSIDER_DB_ALIAS = insider_settings.DB_ALIAS
     
     def db_for_read(self, model, **hints):
         """
@@ -16,7 +16,7 @@ class FootprintRouter:
         """
 
         if model._meta.app_label in self.route_app_labels:
-            return self.FOOTPRINT_DB_ALIAS
+            return self.INSIDER_DB_ALIAS
         return None 
     
     def db_for_write(self, model, **hints):
@@ -25,14 +25,14 @@ class FootprintRouter:
         """
 
         if model._meta.app_label in self.route_app_labels:
-            return self.FOOTPRINT_DB_ALIAS
+            return self.INSIDER_DB_ALIAS
         return None
 
     def allow_relation(self, obj1, obj2, **hints):
         """
         Allow relations only if both objects are on the same database.
-        If both are Footprint models, they're on the Footprint DB.
-        If neither are Footprint models, they're on 'default' (or another router's choice).
+        If both are Insider models, they're on the Insider DB.
+        If neither are Insider models, they're on 'default' (or another router's choice).
         """
         
         app1 = obj1._meta.app_label
@@ -53,9 +53,9 @@ class FootprintRouter:
         """
         
         if app_label in self.route_app_labels:
-            return db == self.FOOTPRINT_DB_ALIAS
+            return db == self.INSIDER_DB_ALIAS
             
-        elif db == self.FOOTPRINT_DB_ALIAS:
+        elif db == self.INSIDER_DB_ALIAS:
             return False 
             
         return None
