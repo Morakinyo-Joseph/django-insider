@@ -5,18 +5,14 @@ import uuid
 import json
 import logging
 import traceback
-from threading import Thread
 from typing import Dict, Any
 
 from django.db import connection
 from django.utils.deprecation import MiddlewareMixin
 
 from insider.settings import settings as insider_settings 
-from insider.settings import should_ignore_path 
-from insider.models import Footprint
-from insider.utils import is_celery_available
-from insider.tasks import save_footprint_task 
-
+from insider.settings import should_ignore_path
+from insider.dispatch import dispatch_save_footprint
 
 class LogCaptureHandler(logging.StreamHandler):
     """Custom handler to capture logs in memory."""
@@ -265,8 +261,5 @@ class FootprintMiddleware(MiddlewareMixin):
         
         db_alias_to_use = insider_settings.DB_ALIAS
 
-        if is_celery_available():
-            footprint_data['__db_alias'] = db_alias_to_use
-            save_footprint_task.delay(footprint_data)
-        else:
-            Thread(target=save_footprint_task, args=(footprint_data,)).start()
+        footprint_data['__db_alias'] = db_alias_to_use
+        dispatch_save_footprint(footprint_data)

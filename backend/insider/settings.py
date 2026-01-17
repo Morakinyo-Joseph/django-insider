@@ -50,6 +50,7 @@ DEFAULTS: Dict[str, Any] = {
     "PUBLISHERS": [],
     "NOTIFIERS": [],
     "COOLDOWN_HOURS": 24,
+    "DATA_RETENTION_DAYS": 30,
 }
 
 
@@ -72,6 +73,7 @@ class InsiderSettings:
     PUBLISHERS: List[str] = field(default_factory=lambda: DEFAULTS["PUBLISHERS"][:])
     NOTIFIERS: List[str] = field(default_factory=lambda: DEFAULTS["NOTIFIERS"][:])
     COOLDOWN_HOURS: int = DEFAULTS["COOLDOWN_HOURS"]
+    DATA_RETENTION_DAYS: int = DEFAULTS["DATA_RETENTION_DAYS"]
 
     # Additional raw dict copy for introspection if needed
     _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
@@ -260,6 +262,11 @@ def _validate_and_normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
         cleaned_methods.append(upper)
 
     cleaned["CAPTURE_METHODS"] = cleaned_methods
+
+
+    # DATA_RETENTION_DAYS
+    drd = raw.get("DATA_RETENTION_DAYS", DEFAULTS["DATA_RETENTION_DAYS"])
+    cleaned["DATA_RETENTION_DAYS"] = int(drd) if drd is not None else 30
 
 
     # store full raw data for debugging.

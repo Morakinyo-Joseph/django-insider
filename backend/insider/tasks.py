@@ -1,99 +1,39 @@
 import logging
 from celery import shared_task
 from datetime import timedelta
-from django.db import transaction, models
 from django.utils import timezone
 from .models import Footprint, Incidence
-from .utils import generate_fingerprint
-from .registry import get_active_publishers, get_active_notifiers
 from .settings import settings as insider_settings
+from insider.services.footprint import save_footprint
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task
-@transaction.atomic
+@shared_task(
+    name="insider.save_footprint_task",
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3, "countdown": 5},
+)
 def save_footprint_task(footprint_data: dict):
+    return save_footprint(footprint_data)
+
+
+@shared_task
+def cleanup_old_data():
     """
-    Saves the collected footprint data in a background Celery task,
-    respecting the configured DB_ALIAS.
+    Deletes footprints older than the configured retention days.
     """
 
-    db_alias = footprint_data.pop('__db_alias', None)
-    if not db_alias:
-        db_alias = 'default'
+    days = insider_settings.DATA_RETENTION_DAYS
+    if days <= 0:
+        return "Cleanup Disabled (Days=0)"
 
-    try:
-        footprint = Footprint.objects.using(db_alias).create(**footprint_data)
+    cutoff_date = timezone.now() - timedelta(days=days)
+    
+    footprint_deleted, _ = Footprint.objects.filter(created_at__lt=cutoff_date).delete()
+    incidences_deleted, _ = Incidence.objects.filter(created_at__lt=cutoff_date).delete()    
 
-        if footprint.status_code >= 400:
-            fingerprint_hash = generate_fingerprint(footprint_data)
-
-            if footprint_data.get("exception_name"):
-                title = f"{footprint_data["exception_name"]} at {footprint_data["request_path"]}"
-            else:
-                title = f"Error {footprint.status_code} at {footprint.request_path}"
-
-            # Aggregate
-            incidence, created = Incidence.objects.get_or_create(
-                fingerprint=fingerprint_hash,
-                defaults={'title': title}
-            )
-
-            footprint.incidence = incidence
-            footprint.save(update_fields=['incidence'])
-
-            # update count and last seen for this incidence instance
-            if not created:
-                Incidence.objects.filter(id=incidence.id).update(
-                    occurrence_count=models.F('occurrence_count') + 1,
-                    last_seen=timezone.now()
-                )
-
-                incidence.refresh_from_db()
-
-            should_notify = False
-
-            if created:
-                should_notify = True
-
-            # Recurring Incidence
-            else:
-                # Notify if incidence was already marked resolved.
-                if incidence.status == 'RESOLVED':
-                    incidence.status = 'OPEN'
-                    incidence.save(update_fields=['status'])
-                    should_notify = True
-
-                # Notify if the cooldown has passed.
-                else:
-                    time_since_notification = timezone.now() - incidence.last_notified
-                    if time_since_notification > timedelta(hours=insider_settings.COOLDOWN_HOURS):
-                        should_notify = True
-
-            if should_notify:
-                incidence.last_notified = timezone.now()
-                incidence.save(update_fields=["last_notified"])
-
-                shared_context = {}
-            
-                if footprint.status_code == 500:
-                    # Run publishers
-                    for publisher in get_active_publishers():
-                        try:
-                            result = publisher.publish(footprint)
-                            if result:
-                                shared_context.update(result)
-                        except Exception as e:
-                            logger.error(f"INSIDER: Publisher failed: {e}")
-
-                # Run Notifiers
-                for notifier in get_active_notifiers():
-                    try:
-                        notifier.notify(footprint, context=shared_context)
-                    except Exception as e:
-                        logger.error(f"INSIDER: Notifier failed: {e}")
-          
-
-    except Exception as e:
-        logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)
+    return (
+        f"INSIDER: Cleanup Completed -  Deleted {footprint_deleted} footprints" \
+        f" and {incidences_deleted} incidences older than {days} days."
+    )

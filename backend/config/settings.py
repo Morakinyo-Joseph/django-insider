@@ -238,12 +238,25 @@ class DisableMigrations:
         return None
 
 
+# Insider settings
+# Change default settings using any:
+# - INSIDER = {}
+# - INSIDER_
 
 INSIDER = {
-    "IGNORE_PATHS": ["/insider/"]
+    "IGNORE_PATHS": ["/insider/"],
+    "DATA_RETENTION_DAYS": 30
 }
 
 
 INSIDER_CAPTURE_REQUEST_BODY = True
 INSIDER_CAPTURE_RESPONSE = True
 INSIDER_DB_ALIAS = "insider"
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
