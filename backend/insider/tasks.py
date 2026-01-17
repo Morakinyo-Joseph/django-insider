@@ -28,8 +28,7 @@ def cleanup_old_data():
     if days <= 0:
         return "Cleanup Disabled (Days=0)"
 
-    # cutoff_date = timezone.now() - timedelta(days=days)
-    cutoff_date = timezone.now() - timedelta(seconds=10)
+    cutoff_date = timezone.now() - timedelta(days=days)
     
     footprint_deleted, _ = Footprint.objects.filter(created_at__lt=cutoff_date).delete()
     incidences_deleted, _ = Incidence.objects.filter(created_at__lt=cutoff_date).delete()    
