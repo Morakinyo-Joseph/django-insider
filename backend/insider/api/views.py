@@ -5,6 +5,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import serializers
 
 from insider.models import Incidence, Footprint, InsiderSetting
 from insider.settings import DEFAULTS, reload_settings
@@ -13,6 +14,7 @@ from .serializers import (
     FootprintListSerializer, FootprintDetailSerializer,
     InsiderSettingSerializer
 )
+from insider.settings import settings as insider_settings
 
 
 
@@ -188,28 +190,39 @@ class SettingsViewSet(viewsets.ModelViewSet):
     pagination_class = None
     http_method_names = ['get', 'patch', 'head', 'options']
 
+    def get_queryset(self):
+        """
+        Return all settings EXCEPT 'DB_ALIAS'. 
+        """
+
+        return InsiderSetting.objects.exclude(key='DB_ALIAS').order_by('key')
+    
     def list(self, request, *args, **kwargs):
         """
         Auto-Discovery: If settings table is empty, populate it with DEFAULTS.
         This ensures the UI is never empty on first install.
         """
         
-        if not self.get_queryset().exists():
+        # Prevent crashing if hidden settings (like DB_ALIAS) already exist.
+        if not InsiderSetting.objects.exists():
             new_settings = []
             
-            for key, default_val in DEFAULTS.items():
+            for key in DEFAULTS.keys():
                 # Inference Logic for Field Type
+
+                current_val = getattr(insider_settings, key, DEFAULTS[key])
+
                 f_type = 'STRING'
-                if isinstance(default_val, bool):
+                if isinstance(current_val, bool):
                     f_type = 'BOOLEAN'
-                elif isinstance(default_val, int) or default_val is None:
+                elif isinstance(current_val, int) or current_val is None:
                     f_type = 'INTEGER'
-                elif isinstance(default_val, list):
+                elif isinstance(current_val, list):
                     f_type = 'LIST'
                 
                 new_settings.append(InsiderSetting(
                     key=key,
-                    value=default_val,
+                    value=current_val,
                     field_type=f_type,
                     description=f"Controls {key.replace('_', ' ').lower()}"
                 ))
@@ -224,5 +237,9 @@ class SettingsViewSet(viewsets.ModelViewSet):
         After saving to DB, force the system to reload config 
         so changes apply immediately without restart.
         """
+
+        if serializer.instance.key == 'DB_ALIAS':
+            raise serializers.ValidationError("DB_ALIAS cannot be changed at runtime.")
+        
         serializer.save()
         reload_settings()
