@@ -1,5 +1,5 @@
 import sys
-from typing import Any
+from typing import Any, Dict
 import hashlib
 
 
@@ -30,7 +30,7 @@ def is_celery_available() -> bool:
         return True
     
     if hasattr(django_settings, 'CELERY') and isinstance(django_settings.CELERY, dict):
-        celery_config: dict[str, Any] = django_settings.CELERY
+        celery_config: Dict[str, Any] = django_settings.CELERY
         
         if celery_config.get('broker_url') or celery_config.get('BROKER_URL'):
             return True
