@@ -27,7 +27,7 @@ def save_footprint(footprint_data: dict):
             fingerprint_hash = generate_fingerprint(footprint_data)
 
             if footprint_data.get("exception_name"):
-                title = f"{footprint_data["exception_name"]} at {footprint_data["request_path"]}"
+                title = f"{footprint_data['exception_name']} at {footprint_data['request_path']}"
             else:
                 title = f"Error {footprint.status_code} at {footprint.request_path}"
 
