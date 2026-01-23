@@ -5,7 +5,7 @@ import uuid
 import json
 import logging
 import traceback
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from django.db import connection
 from django.utils.deprecation import MiddlewareMixin
@@ -140,7 +140,7 @@ class FootprintMiddleware(MiddlewareMixin):
         
 
     
-    def _capture_request_body(self, request) -> Dict[str, Any] | None:
+    def _capture_request_body(self, request) -> Optional[Dict[str, Any]]:
         """
         Handles conditional capture, JSON parsing, and masking.
         """
@@ -188,7 +188,7 @@ class FootprintMiddleware(MiddlewareMixin):
 
         return masked_data
     
-    def _capture_response_body(self, response) -> Dict[str, Any] | str | None:
+    def _capture_response_body(self, response) -> Optional[Dict[str, Any]]:
         """
         Handles conditional capture, truncation, and JSON parsing of the response.
         """
