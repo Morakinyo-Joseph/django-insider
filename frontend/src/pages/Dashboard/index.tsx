@@ -3,6 +3,7 @@ import { fetchDashboardStats } from "../../api/client";
 import { Activity, AlertTriangle, Users, Clock, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Incidence } from "../../types";
+import { Skeleton, TableRowSkeleton } from "../../components/Skeleton";
 
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery({
@@ -11,9 +12,8 @@ export default function Dashboard() {
     refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
-  if (isLoading) return <div className="p-8">Loading dashboard...</div>;
   if (error) return <div className="p-8 text-red-600">Failed to load dashboard data.</div>;
-  if (!data) return null;
+
 
   return (
     <div className="space-y-8">
@@ -24,34 +24,44 @@ export default function Dashboard() {
 
       {/* 1. HEALTH CARDS ROW */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatsCard 
-          label="Server Errors (500)" 
-          value={data.velocity.errors_500} 
-          icon={<AlertTriangle className="text-red-500" />} 
-          trend="Last 24h"
-          color="border-l-4 border-red-500"
-        />
-        <StatsCard 
-          label="Client Errors (400)" 
-          value={data.velocity.errors_400} 
-          icon={<Activity className="text-yellow-500" />} 
-          trend="Last 24h"
-          color="border-l-4 border-yellow-500"
-        />
-        <StatsCard 
-          label="Avg Latency" 
-          value={`${data.health.avg_response_time_ms}ms`} 
-          icon={<Clock className="text-blue-500" />} 
-          trend="Global Avg"
-          color="border-l-4 border-blue-500"
-        />
-        <StatsCard 
-          label="Total Traffic" 
-          value={data.velocity.total_24h} 
-          icon={<CheckCircle className="text-green-500" />} 
-          trend="Requests"
-          color="border-l-4 border-green-500"
-        />
+        {isLoading ? (
+          // Render 4 Skeleton Cards
+          Array.from({ length: 4 }).map((_, i) => (
+            <StatsCardSkeleton key={i} />
+          ))
+        ) : (
+          // Render Real Cards
+          <>
+            <StatsCard 
+              label="Server Errors (500)" 
+              value={data?.velocity.errors_500} 
+              icon={<AlertTriangle className="text-red-500" />} 
+              trend="Last 24h"
+              color="border-l-4 border-red-500"
+            />
+            <StatsCard 
+              label="Client Errors (400)" 
+              value={data?.velocity.errors_400} 
+              icon={<Activity className="text-yellow-500" />} 
+              trend="Last 24h"
+              color="border-l-4 border-yellow-500"
+            />
+            <StatsCard 
+              label="Avg Latency" 
+              value={`${data?.health.avg_response_time_ms}ms`} 
+              icon={<Clock className="text-blue-500" />} 
+              trend="Global Avg"
+              color="border-l-4 border-blue-500"
+            />
+            <StatsCard 
+              label="Total Traffic" 
+              value={data?.velocity.total_24h} 
+              icon={<CheckCircle className="text-green-500" />} 
+              trend="Requests"
+              color="border-l-4 border-green-500"
+            />
+          </>
+        )}
       </div>
 
       {/* 2. TOP OFFENDERS SECTION */}
@@ -74,34 +84,41 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {data.top_offenders.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                    No active incidences found.
-                  </td>
-                </tr>
+              {isLoading ? (
+                // Render 5 Skeleton Rows with 4 columns
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} cols={4} />
+                ))
               ) : (
-                data.top_offenders.map((incidence: Incidence) => (
-                  <tr key={incidence.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900 truncate max-w-md">
-                      <Link to={`/incidences/${incidence.id}`} className="hover:underline">
-                        {incidence.title}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Users size={16} className="text-gray-400" />
-                        <span>{incidence.users_affected} Users</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">{incidence.occurrence_count}</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        {incidence.status}
-                      </span>
+                data?.top_offenders.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                      No active incidences found.
                     </td>
                   </tr>
-                ))
+                ) : (
+                  data?.top_offenders.map((incidence: Incidence) => (
+                    <tr key={incidence.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-900 truncate max-w-md">
+                        <Link to={`/incidences/${incidence.id}`} className="hover:underline">
+                          {incidence.title}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Users size={16} className="text-gray-400" />
+                          <span>{incidence.users_affected} Users</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">{incidence.occurrence_count}</td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          {incidence.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )
               )}
             </tbody>
           </table>
@@ -111,7 +128,23 @@ export default function Dashboard() {
   );
 }
 
-// Simple Helper Component for the Cards
+// Skeleton for Stats Card
+function StatsCardSkeleton() {
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+      <div className="flex justify-between items-start">
+        <div className="w-full">
+          <Skeleton className="h-4 w-24 mb-2" /> {/* Label */}
+          <Skeleton className="h-8 w-16" />      {/* Value */}
+        </div>
+        <Skeleton className="h-10 w-10 rounded-lg" /> {/* Icon */}
+      </div>
+      <Skeleton className="h-3 w-20 mt-4" /> {/* Trend */}
+    </div>
+  );
+}
+
+// Helper Component for the Cards (Unchanged)
 function StatsCard({ label, value, icon, trend, color }: any) {
   return (
     <div className={`bg-white p-6 rounded-lg shadow-sm border border-gray-100 ${color}`}>

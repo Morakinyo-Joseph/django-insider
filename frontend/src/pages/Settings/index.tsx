@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchSettings, updateSetting  } from "../../api/client";
 import { Save, ToggleLeft, ToggleRight } from "lucide-react";
 import type { InsiderSetting } from "../../types";
+import { Skeleton } from "../../components/Skeleton";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -20,7 +21,33 @@ export default function Settings() {
     },
   });
 
-  if (isLoading) return <div className="p-8 text-gray-500">Loading configurations...</div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6 max-w-4xl">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+          <p className="text-gray-500 text-sm">
+             Manage the behavior of the Insider package. Changes apply immediately.
+          </p>
+        </div>
+
+        <div className="grid gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-64" />
+              </div>
+              <div className="sm:w-1/2 flex items-center justify-end gap-3">
+                 <Skeleton className="h-9 w-full rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (error) return <div className="p-8 text-red-600">Failed to load settings.</div>;
 
   return (
