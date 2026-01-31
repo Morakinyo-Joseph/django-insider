@@ -1,16 +1,33 @@
 from rest_framework import serializers
 from insider.models import Incidence, Footprint, InsiderSetting
+from insider.settings import settings as insider_settings 
 
 
 class FootprintListSerializer(serializers.ModelSerializer):
     """Lightweight: For lists (Recent Occurrences, Breadcrumbs)."""
+    is_slow = serializers.SerializerMethodField()
 
+    def get_is_slow(self, obj):
+        threshold = getattr(insider_settings, 'SLOW_REQUEST_THRESHOLD', None)
+        if threshold is None:
+            threshold = 500
+
+        if obj.response_time is None:
+            return False
+        
+        try:
+            
+            return obj.response_time > float(threshold)
+        except (TypeError, ValueError):
+            return False
+        
+    
     class Meta:
         model = Footprint
         fields = [
             'id', 'request_id', 'request_method', 'request_path', 'status_code',
             'request_user', 'response_time', 'created_at', 'db_query_count',
-            'stack_trace'
+            'stack_trace', 'is_slow'
         ]
 
 class FootprintDetailSerializer(serializers.ModelSerializer):

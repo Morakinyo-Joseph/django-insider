@@ -80,6 +80,11 @@ export const fetchFootprintBreadcrumbs = async (id: string): Promise<Footprint[]
   return response.data;
 };
 
+export const fetchFootprintsList = async (page: number = 1): Promise<any> => {
+  const response = await apiClient.get(`footprints/?page=${page}`);
+  return response.data;
+};
+
 export const fetchSettings = async (): Promise<InsiderSetting[]> => {
   const response = await apiClient.get('settings/');
   return response.data;

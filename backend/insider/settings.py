@@ -316,7 +316,12 @@ def get(key: str, default: Any = None) -> Any:
     """
     Convenience accessor: e.g insider.settings.get("MAX_RESPONSE_LENGTH")
     """
-    return getattr(settings, key, settings._raw.get(key, default))
+
+    val = getattr(settings, key, None)
+    if val is not None:
+        return val
+    
+    return settings._raw.get(key, default)
 
 
 def should_ignore_path(path: str) -> bool:
