@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import serializers
+from rest_framework.pagination import PageNumberPagination
 
 from insider.models import Incidence, Footprint, InsiderSetting
 from insider.settings import DEFAULTS, reload_settings
@@ -17,6 +18,11 @@ from .serializers import (
 from insider.settings import settings as insider_settings
 
 
+class CustomPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+ 
 
 class IsStaff(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -103,7 +109,7 @@ class FootprintViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Footprint.objects.all().order_by('-created_at')
     permission_classes = [IsStaff]
-    pagination_class = None
+    pagination_class = CustomPagination
 
     def get_serializer_class(self):
         if self.action == 'retrieve':

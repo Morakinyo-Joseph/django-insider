@@ -1,4 +1,4 @@
-from insider.settings import settings as insider_settings
+from django.conf import settings
 
 class InsiderRouter:
     """
@@ -8,7 +8,10 @@ class InsiderRouter:
 
     route_app_labels = {'insider'}
 
-    INSIDER_DB_ALIAS = insider_settings.DB_ALIAS
+    def _get_db_alias(self):
+        # Avoid circular import by fetching directly from django.conf.settings
+        insider_cfg = getattr(settings, "INSIDER", {})
+        return insider_cfg.get("DB_ALIAS", getattr(settings, "INSIDER_DB_ALIAS", "default"))
     
     def db_for_read(self, model, **hints):
         """
@@ -16,7 +19,7 @@ class InsiderRouter:
         """
 
         if model._meta.app_label in self.route_app_labels:
-            return self.INSIDER_DB_ALIAS
+            return self._get_db_alias()
         return None 
     
     def db_for_write(self, model, **hints):
@@ -25,7 +28,7 @@ class InsiderRouter:
         """
 
         if model._meta.app_label in self.route_app_labels:
-            return self.INSIDER_DB_ALIAS
+            return self._get_db_alias()
         return None
 
     def allow_relation(self, obj1, obj2, **hints):
@@ -51,11 +54,12 @@ class InsiderRouter:
         Ensure migrations for models in route_app_labels only run on the configured database.
         And all other app migrations do NOT run on the configured database.
         """
+        db_alias = self._get_db_alias()
         
         if app_label in self.route_app_labels:
-            return db == self.INSIDER_DB_ALIAS
+            return db == db_alias
             
-        elif db == self.INSIDER_DB_ALIAS:
+        elif db == db_alias:
             return False 
             
         return None

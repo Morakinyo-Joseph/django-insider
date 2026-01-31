@@ -56,6 +56,7 @@ DEFAULTS: Dict[str, Any] = {
 
 @dataclass
 class InsiderSettings:
+    _db_loaded: bool = field(default=False, init=False, repr=False)
     IGNORE_PATHS: List[str] = field(default_factory=lambda: DEFAULTS["IGNORE_PATHS"][:])
     IGNORE_ADMIN: bool = DEFAULTS["IGNORE_ADMIN"]
     CAPTURE_RESPONSE: bool = DEFAULTS["CAPTURE_RESPONSE"]
@@ -77,6 +78,31 @@ class InsiderSettings:
 
     # Additional raw dict copy for introspection if needed
     _raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+
+    def __getattribute__(self, name):
+        # Avoid recursion for internal fields and the loader itself
+        if name.startswith('_') or name == 'asdict':
+            return super().__getattribute__(name)
+        
+        # Trigger lazy load of DB overrides if not already done
+        if not super().__getattribute__('_db_loaded'):
+            # Bypass __setattr__ to avoid recursion
+            object.__setattr__(self, '_db_loaded', True)
+            
+            db_overrides = _load_db_overrides()
+            if db_overrides:
+                # Merge DB overrides into the raw data
+                new_raw = self._raw.copy()
+                new_raw.update(db_overrides)
+                object.__setattr__(self, '_raw', new_raw)
+
+                # Re-validate and update fields
+                cleaned = _validate_and_normalize(new_raw)
+                for key in DEFAULTS.keys():
+                    if key in cleaned:
+                        object.__setattr__(self, key, cleaned[key])
+            
+        return super().__getattribute__(name)
 
     def asdict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -132,10 +158,6 @@ def _load_user_config() -> Dict[str, Any]:
         setting_name = f"INSIDER_{key}"
         if hasattr(django_settings, setting_name):
             cfg[key] = getattr(django_settings, setting_name)
-
-    # 3) Database Overrides (Highest Priority)
-    db_overrides = _load_db_overrides()
-    cfg.update(db_overrides)
 
     return cfg
 
@@ -316,7 +338,12 @@ def get(key: str, default: Any = None) -> Any:
     """
     Convenience accessor: e.g insider.settings.get("MAX_RESPONSE_LENGTH")
     """
-    return getattr(settings, key, settings._raw.get(key, default))
+
+    val = getattr(settings, key, None)
+    if val is not None:
+        return val
+    
+    return settings._raw.get(key, default)
 
 
 def should_ignore_path(path: str) -> bool:

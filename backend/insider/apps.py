@@ -11,11 +11,19 @@ class InsiderConfig(AppConfig):
             return
         
         try:
-            from insider.settings import settings
+            from django.conf import settings as django_settings
             from celery import current_app
             from celery.schedules import crontab
             
-            if settings.DATA_RETENTION_DAYS > 0:
+            # Check Django settings directly to avoid triggering a database query \
+            # (lazy load) during app initialization, which causes a RuntimeWarning.
+            insider_cfg = getattr(django_settings, "INSIDER", {})
+            retention_days = insider_cfg.get("DATA_RETENTION_DAYS")
+
+            if retention_days is None:
+                retention_days = getattr(django_settings, "INSIDER_DATA_RETENTION_DAYS", 30)
+
+            if retention_days > 0:
                 current_app.conf.beat_schedule.update({
                     'insider-cleanup': {
                         'task': 'insider.tasks.cleanup_old_data',
