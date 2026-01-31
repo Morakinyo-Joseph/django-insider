@@ -7,13 +7,15 @@ import {
   Database, AlertTriangle 
 } from "lucide-react";
 import { format } from "date-fns";
+import { TableRowSkeleton } from "../../components/Skeleton";
 
 export default function Footprints() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
   // Fetch data with caching
-  const { data, isLoading } = useQuery({
+  // Added isFetching to detect background updates
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["footprints", page],
     queryFn: () => fetchFootprintsList(page),
     placeholderData: (previousData) => previousData, 
@@ -23,10 +25,20 @@ export default function Footprints() {
   const hasNext = !!data?.next;
   const hasPrev = !!data?.previous;
 
-  if (isLoading) return <div className="p-8 text-gray-500">Loading logs...</div>;
+  // Hybrid Loader Logic
+  const showSkeleton = isLoading; 
+  const isPaginationLoading = isFetching && !isLoading;
 
   return (
     <div className="space-y-6">
+      {/*  CSS Animation for the Progress Bar */}
+      <style>{`
+        @keyframes indeterminate-slide {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+
       {/* HEADER */}
       <div className="flex justify-between items-end">
         <div>
@@ -42,14 +54,14 @@ export default function Footprints() {
             <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                  <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={!hasPrev}
+                    disabled={!hasPrev || isPaginationLoading}
                     className="px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-r border-gray-200"
                   >
                     <ArrowLeft size={14} />
                   </button>
                   <button
                     onClick={() => setPage((p) => p + 1)}
-                    disabled={!hasNext}
+                    disabled={!hasNext || isPaginationLoading}
                     className="px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ArrowRight size={14} />
@@ -59,36 +71,60 @@ export default function Footprints() {
       </div>
 
       {/* TABLE CONTAINER */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-              <th className="px-6 py-4 w-20">Method</th>
-              <th className="px-6 py-4">Path</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Duration</th>
-              <th className="px-6 py-4">DB</th>
-              <th className="px-6 py-4">User ID</th>
-              <th className="px-6 py-4 text-right">Date Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {logs.map((log: any) => (
-              <FootprintRow 
-                key={log.id} 
-                log={log} 
-                onClick={() => navigate(`/footprints/${log.id}`)} 
-              />
-            ))}
-            {logs.length === 0 && (
-                <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400 text-sm">
-                        No logs found.
-                    </td>
-                </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
+        
+        {/* Purple Progress Bar (Visible only during pagination) */}
+        {isPaginationLoading && (
+           <div className="absolute top-0 left-0 w-full h-0.5 bg-purple-100 overflow-hidden z-10">
+             {/*  Applied the animation style manually here */}
+             <div 
+               className="w-full h-full bg-purple-600" 
+               style={{ animation: 'indeterminate-slide 1s infinite linear' }}
+             ></div>
+           </div>
+        )}
+
+        {/* Opacity Dip Wrapper */}
+        <div className={`transition-opacity duration-200 ${isPaginationLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                <th className="px-6 py-4 w-20">Method</th>
+                <th className="px-6 py-4">Path</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Duration</th>
+                <th className="px-6 py-4">DB</th>
+                <th className="px-6 py-4">User ID</th>
+                <th className="px-6 py-4 text-right">Date Created</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {showSkeleton ? (
+                // Skeleton Rows (Initial Load)
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRowSkeleton key={i} cols={7} />
+                ))
+              ) : (
+                // Real Data
+                logs.map((log: any) => (
+                  <FootprintRow 
+                    key={log.id} 
+                    log={log} 
+                    onClick={() => navigate(`/footprints/${log.id}`)} 
+                  />
+                ))
+              )}
+              
+              {!showSkeleton && logs.length === 0 && (
+                  <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-400 text-sm">
+                          No logs found.
+                      </td>
+                  </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -181,5 +217,3 @@ function FootprintRow({ log, onClick }: { log: any; onClick: () => void }) {
     </tr>
   );
 }
-
-

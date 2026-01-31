@@ -4,6 +4,7 @@ import { fetchIncidenceDetail, fetchIncidenceFootprints } from "../../api/client
 import { ChevronLeft, Clock, Globe, ShieldAlert, Terminal } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { StackFrame } from '../../types';
+import { Skeleton } from "../../components/Skeleton";
 
 export default function InvestigationRoom() {
   const { incidenceId } = useParams();
@@ -20,7 +21,76 @@ export default function InvestigationRoom() {
     queryFn: () => fetchIncidenceFootprints(incidenceId!),
   });
 
-  if (isLoadingIncidence || isLoadingFootprints) return <div className="p-8">Loading forensic data...</div>;
+  // SKELETON STATE
+  if (isLoadingIncidence || isLoadingFootprints) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <ChevronLeft size={16} /> <Skeleton className="h-4 w-24" />
+        </div>
+
+        {/* Header Skeleton */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-start">
+          <div className="space-y-2 w-full">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-5 w-16 rounded" /> {/* Status Badge */}
+              <Skeleton className="h-8 w-1/3 rounded" /> {/* Title */}
+            </div>
+            <Skeleton className="h-4 w-48" /> {/* Fingerprint */}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* LEFT COLUMN: Stack Trace Skeleton */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 flex flex-col h-[500px]">
+              <div className="bg-slate-800 px-4 py-2 flex items-center gap-2">
+                <Skeleton className="h-3 w-32 bg-slate-700" />
+              </div>
+              <div className="p-4 space-y-3">
+                {/* Simulate code lines */}
+                <Skeleton className="h-4 w-3/4 bg-slate-800" />
+                <Skeleton className="h-4 w-1/2 bg-slate-800" />
+                <Skeleton className="h-4 w-2/3 bg-slate-800" />
+                <Skeleton className="h-4 w-full bg-slate-800" />
+                <Skeleton className="h-4 w-5/6 bg-slate-800" />
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Sidebar Skeleton */}
+          <div className="space-y-6">
+            
+            {/* Context Card Skeleton */}
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+              <Skeleton className="h-4 w-24" /> {/* Header */}
+              <div className="space-y-4">
+                <div className="flex justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-24" /></div>
+                <div className="flex justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-24" /></div>
+                <div className="flex justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-24" /></div>
+              </div>
+            </div>
+
+            {/* List Skeleton */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-64">
+              <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between">
+                 <Skeleton className="h-4 w-32" />
+                 <Skeleton className="h-4 w-12" />
+              </div>
+              <div className="p-4 space-y-4">
+                 <Skeleton className="h-10 w-full" />
+                 <Skeleton className="h-10 w-full" />
+                 <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!incidence) return <div className="p-8 text-red-600">Incidence not found.</div>;
 
   // 3. Simple Logic to find "Top" stats from the loaded footprints

@@ -1,8 +1,9 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFootprint, fetchFootprintBreadcrumbs } from "../../api/client";
-import { ChevronLeft, Database, Clock, Server, ArrowDownLeft, ArrowUpRight, Activity, Terminal, Copy } from "lucide-react"; // ADDED: Copy Icon
+import { ChevronLeft, Database, Clock, Server, ArrowDownLeft, ArrowUpRight, Activity, Terminal, Copy } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "../../components/Skeleton";
 
 export default function ForensicsLab() {
   const { footprintId } = useParams();
@@ -18,12 +19,73 @@ export default function ForensicsLab() {
     enabled: !!footprint, // Only fetch if footprint exists
   });
 
-  if (isLoading) return <div className="p-8">Loading request data...</div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+           <Skeleton className="h-4 w-4 rounded-full" />
+           <Skeleton className="h-4 w-32" />
+        </div>
+
+        {/* Header Skeleton */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center">
+           <div className="flex items-center gap-4">
+             <Skeleton className="w-12 h-12 rounded-full" />
+             <div className="space-y-2">
+               <Skeleton className="h-5 w-48" />
+               <Skeleton className="h-3 w-32" />
+             </div>
+           </div>
+           <div className="flex flex-col items-end gap-2">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-3 w-16" />
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           {/* Center Col Skeleton */}
+           <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm h-64 p-4 space-y-4">
+                 <div className="flex justify-between">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-6 w-24" />
+                 </div>
+                 <Skeleton className="h-full w-full rounded bg-gray-100" />
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm h-64 p-4 space-y-4">
+                 <Skeleton className="h-4 w-32" />
+                 <Skeleton className="h-full w-full rounded bg-gray-100" />
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm h-40 p-4 space-y-4">
+                 <Skeleton className="h-4 w-24" />
+                 <Skeleton className="h-full w-full rounded bg-slate-900" />
+              </div>
+           </div>
+
+           {/* Sidebar Skeleton */}
+           <div className="space-y-6">
+              <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm h-48 space-y-4">
+                 <Skeleton className="h-4 w-24 mb-4" />
+                 <Skeleton className="h-4 w-full" />
+                 <Skeleton className="h-4 w-full" />
+                 <Skeleton className="h-4 w-full" />
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm h-64 p-4 space-y-4">
+                 <Skeleton className="h-4 w-40 mb-2" />
+                 <Skeleton className="h-12 w-full" />
+                 <Skeleton className="h-12 w-full" />
+                 <Skeleton className="h-12 w-full" />
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!footprint) return <div className="p-8 text-red-600">Request trace not found.</div>;
 
   const isError = footprint.status_code >= 400;
 
-  // ADDED: Replay Station Logic
   const handleCopyCurl = () => {
     let cmd = `curl -X ${footprint.request_method} "${footprint.request_path}"`;
     
@@ -89,7 +151,6 @@ export default function ForensicsLab() {
                 <ArrowUpRight size={16} className="text-blue-500" />
                 <h3 className="text-xs font-bold text-gray-700 uppercase">Request Payload</h3>
               </div>
-              {/* ADDED: Replay Button */}
               <button 
                 onClick={handleCopyCurl}
                 className="flex items-center gap-1 text-[10px] bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100 text-gray-700 font-medium"
@@ -184,10 +245,10 @@ export default function ForensicsLab() {
                     crumb.id === footprint.id ? 'bg-indigo-50 border-l-2 border-indigo-500' : ''
                 }`}>
                   <div className="flex items-center gap-2">
-                     <span className={`font-bold ${crumb.status_code >= 400 ? 'text-red-500' : 'text-green-600'}`}>
+                      <span className={`font-bold ${crumb.status_code >= 400 ? 'text-red-500' : 'text-green-600'}`}>
                         {crumb.request_method}
-                     </span>
-                     <span className="text-gray-600 truncate max-w-[120px]">{crumb.request_path}</span>
+                      </span>
+                      <span className="text-gray-600 truncate max-w-[120px]">{crumb.request_path}</span>
                   </div>
                   <span className="text-gray-400 font-mono">
                     {formatDistanceToNow(new Date(crumb.created_at))} ago
