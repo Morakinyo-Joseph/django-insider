@@ -163,20 +163,27 @@ export default function Integrations() {
                           {/* Name & Status */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3">
-                                <h3 className="text-base font-semibold text-gray-900">
-                                    {integration.name}
-                                </h3>
-                                {!integration.is_active && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
-                                        Disabled
-                                    </span>
-                                )}
+                              <h3 className="text-base font-semibold text-gray-900">
+                                {integration.name}
+                              </h3>
+                              
+                              {/* --- RESTORED STATUS BADGES --- */}
+                              {integration.is_active ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-50 text-green-700 border border-green-200">
+                                  <CheckCircle2 size={10} className="text-green-600" />
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                  Disabled
+                                </span>
+                              )}    
                             </div>
                             <p className="text-xs text-gray-400 mt-0.5 truncate">
-                                {index === 0 
-                                    ? "Starts the pipeline (Producer)" 
-                                    : "Runs after previous step"
-                                }
+                              {index === 0 
+                                ? "Starts the pipeline (Producer)" 
+                                : "Runs after previous step"
+                              }
                             </p>
                           </div>
 
