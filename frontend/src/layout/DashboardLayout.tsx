@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { LayoutDashboard, Inbox, Settings, Footprints } from "lucide-react";
+import { LayoutDashboard, Inbox, Settings, Footprints, Puzzle } from "lucide-react";
 
 export function DashboardLayout() {
   return (
@@ -14,6 +14,7 @@ export function DashboardLayout() {
           <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
           <NavItem to="/incidences" icon={<Inbox size={20} />} label="Incidence" />
           <NavItem to="/footprints" icon={<Footprints size={20} />} label="Footprints" />
+          <NavItem to="/integrations" icon={<Puzzle size={20} />} label="Integrations" />
           {/* We don't link to Detail/Forensics directly, they are hidden paths */}
         </nav>
 
