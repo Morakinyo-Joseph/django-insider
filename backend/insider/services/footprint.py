@@ -4,7 +4,7 @@ from django.db import models
 from django.utils import timezone
 from insider.models import Footprint, Incidence
 from insider.utils import generate_fingerprint
-from insider.registry import get_active_publishers, get_active_notifiers
+from insider.registry import get_active_integrations
 from insider.settings import settings as insider_settings
 
 logger = logging.getLogger(__name__)
@@ -73,24 +73,16 @@ def save_footprint(footprint_data: dict):
                 incidence.save(update_fields=["last_notified"])
 
                 shared_context = {}
+
+                active_integrations = get_active_integrations()
+                try:
+                    for integration in active_integrations:
+                        result = integration.run(footprint, shared_context)
+                        if result and isinstance(result, dict):
+                            shared_context.update(result)
+                            
+                except Exception as e:
+                    logger.error(f"INSIDER: Integration '{integration.identifier}' failed: {e}")
             
-                if footprint.status_code == 500:
-                    # Run publishers
-                    for publisher in get_active_publishers():
-                        try:
-                            result = publisher.publish(footprint)
-                            if result:
-                                shared_context.update(result)
-                        except Exception as e:
-                            logger.error(f"INSIDER: Publisher failed: {e}")
-
-                # Run Notifiers
-                for notifier in get_active_notifiers():
-                    try:
-                        notifier.notify(footprint, context=shared_context)
-                    except Exception as e:
-                        logger.error(f"INSIDER: Notifier failed: {e}")
-          
-
     except Exception as e:
         logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)

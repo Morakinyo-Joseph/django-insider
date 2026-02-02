@@ -1,20 +1,29 @@
-from abc import ABC
+import requests
+import logging
 from typing import Tuple
-from .models import Footprint
-from .services.slack import SlackManager
+from .base import BaseIntegration
 
+logger = logging.getLogger(__name__)
 
-class BaseNotifier(ABC):
-    """ Generic contract for all notifier services. """
-
-    def notify(self, footprint: Footprint, context=None):
-        raise NotImplementedError
+class SlackIntegration(BaseIntegration):
+    identifier = "slack"
+    logo_url = "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg"
     
-
-
-class SlackNotifier(BaseNotifier):
-    def __init__(self):
-        self.manager = SlackManager()
+    config_definition = {
+        "webhook_url": {
+            "label": "Slack Webhook URL",
+            "type": "PASSWORD",
+            "required": True,
+            "help_text": "Incoming Webhook URL from your Slack App."
+        },
+        "channel": {
+            "label": "Channel Name (Optional)",
+            "type": "STRING",
+            "required": False,
+            "default": "#general",
+            "help_text": "Override the default channel (e.g. #alerts)"
+        }
+    }
 
     def _get_block_info(self, status_code, user, method, endpoint) -> Tuple[str, str]:
         if status_code >= 500:
@@ -23,65 +32,58 @@ class SlackNotifier(BaseNotifier):
                 f"An *Internal Server Error ({status_code})* has occurred for user `{user}` "
                 f"at endpoint `{method} {endpoint}`."
             )
-
         elif 400 <= status_code < 500:
             header_text = f"CLIENT ERROR DETECTED: {status_code} Status Code"
             section_text = (
                 f"A *Client Error ({status_code})* was made by user `{user}` to endpoint `{method} {endpoint}`. "
             )
-            
         else:
             header_text = f"INFORMATIONAL: {status_code} Status Code"
             section_text = f"An event with status code {status_code} occurred for user `{user}` at `{endpoint}`."
 
         return header_text, section_text
-    
 
     def _format_log_snippet(self, logs):
-        """
-        Helper to turn a list of log strings into a clean, truncated code block.
-        """
         if not logs:
             return "No logs captured."
         
-        # Join list into a single string
-        if isinstance(logs, list):
-            full_text = "\n".join(logs)
-        else:
-            full_text = str(logs)
+        full_text = "\n".join(logs) if isinstance(logs, list) else str(logs)
 
-        # Smart Truncate: Focus on the END of the logs (where the error usually is)
+        # Smart Truncate: Focus on the END of the logs
         if len(full_text) > 1500:
             snippet = "..." + full_text[-1500:]
         else:
             snippet = full_text
 
-        # Wrap in Slack code block
         return f"```\n{snippet}\n```"
-    
 
-    def notify(self, footprint, context=None):
+    def run(self, footprint, context):
+        # 1. Get Config
+        webhook = self.get_config("webhook_url")
+        channel = self.get_config("channel")
+        if not webhook:
+            return
+
+        # 2. Extract Data
         context = context or {}
         method = footprint.request_method.upper()
         status_code = footprint.status_code
         endpoint = footprint.request_path
         user = footprint.request_user
+        
+        # 3. Check Context (Waterfall)
+        # This checks if a previous integration (like Jira) dropped data in the bucket
         published_service = context.get("published_service", None)
         published_url = context.get("published_url", None)
-        
-        header_text, section_text = self._get_block_info(
-            status_code, user, method, endpoint
-        )
-        
-        # CLEAN THE LOGS HERE
+
+        # 4. Build Blocks
+        header_text, section_text = self._get_block_info(status_code, user, method, endpoint)
         log_snippet = self._format_log_snippet(footprint.system_logs)
 
         blocks = [
             {"type": "header", "text": {"type": "plain_text", "text": header_text}},
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"<!morakinyo> {section_text}"}},
-
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"<!morakinyo> {section_text}"}}, # TODO: Who to alert on slack could be dynamic.
             {"type": "divider"},
-
             {
                 "type": "section",
                 "fields": [
@@ -92,7 +94,6 @@ class SlackNotifier(BaseNotifier):
                     {"type": "mrkdwn", "text": f"*Occurred At (UTC):*\n`{footprint.created_at}`"}
                 ]
             },
-            
             {
                 "type": "section",
                 "text": {
@@ -100,21 +101,18 @@ class SlackNotifier(BaseNotifier):
                     "text": f"*System Logs (Snippet):*\n{log_snippet}"
                 }
             },
-
             {"type": "divider"},
-
             {
                 "type": "context",
                 "elements": [
                     {"type": "mrkdwn", "text": "*Quick Reference:*"},
                     {"type": "mrkdwn", "text": f"• Response Body Snippet: `{str(footprint.response_body)[:50]}...`" },
-                    # Removed "System Logs" from here because it is now in the main section above
                 ]
             }
         ]
 
+        # 5. Add "View Ticket" Button if Context exists
         if published_url:
-            # Add the Ticket Button
             blocks.append({
                 "type": "section",
                 "text": {
@@ -132,10 +130,12 @@ class SlackNotifier(BaseNotifier):
                 },  
             })
 
+        payload = {"blocks": blocks}
+        if channel:
+            payload["username"] = channel
 
-        payload = {
-            "username": self.manager.channel,
-            "blocks": blocks
-        }
-
-        self.manager.send_alert(payload)
+        # 6. Send
+        try:
+            requests.post(webhook, json=payload, timeout=5)
+        except Exception as e:
+            logger.error(f"INSIDER: Slack send failed: {e}")
