@@ -104,20 +104,8 @@ class JiraIntegration(BaseIntegration):
             key = created_issue['key']
             issue_url = f"{url}/browse/{key}"
 
-            current_issues = context.get("generated_issues", [])
-            
-            new_issue = {
-                "system": "Jira",
-                "url": issue_url,
-                "key": key
-            }
-
-            return {
-                "generated_issues": current_issues + [new_issue],
-                "issue_system": "Jira",
-                "issue_url": issue_url,
-                "issue_key": key
-            }
+            return self.create_issue_payload(context, "Jira", issue_url, key)
+ 
 
         except (HTTPError, ConnectionError, Timeout) as e:
             status_code = e.response.status_code if hasattr(e, 'response') and e.response else 'N/A'

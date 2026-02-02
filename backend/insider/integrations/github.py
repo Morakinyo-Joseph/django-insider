@@ -48,29 +48,29 @@ class GithubIntegration(BaseIntegration):
             logger.warning("INSIDER: GitHub integration missing required config.")
             return
 
-        url = f"https://api.github.com/repos/{owner}/{repo}/issues"
-        
+        url = f"https://api.github.com/repos/{owner}/{repo}/issues" 
+
         title = f"[Insider] Error {footprint.status_code}: {footprint.request_path}"
 
         if hasattr(footprint, 'incidence') and footprint.incidence:
              title = f"[Insider] {footprint.incidence.title}"
 
-        body = f"""
-            ### 🚨 Insider Alert
-            **Path:** `{footprint.request_method} {footprint.request_path}`
-            **User:** {footprint.request_user or 'Anonymous'}
-            **Time:** {footprint.created_at}
-
-            <details>
-            <summary><b>Stack Trace</b></summary>
-
-            ```python
-            {self._format_stack_trace(footprint)}
-            </details>
-
-            See full details in Insider Dashboard. 
-        """
-
+        body = (
+            f"### 🚨 Insider Alert\n\n"
+            f"- **Path:** `{footprint.request_method} {footprint.request_path}`\n"
+            f"- **Status Code:** {footprint.status_code}\n"
+            f"- **Method:** {footprint.request_method}\n"
+            f"- **User:** {footprint.request_user or 'Anonymous'}\n"
+            f"- **Time:** {footprint.created_at}\n\n"
+            f"<details>\n"
+            f"<summary><b>Stack Trace</b></summary>\n\n"
+            f"```python\n"
+            f"{self._format_stack_trace(footprint)}\n"
+            f"```\n"
+            f"</details>\n\n"
+            f"See full details in Insider Dashboard."
+        )
+        
         labels_str = config.get("labels", "bug,insider")
         labels = [l.strip() for l in labels_str.split(",") if l.strip()]
 
@@ -91,9 +91,9 @@ class GithubIntegration(BaseIntegration):
             
             data = response.json()
             issue_url = data.get("html_url")
-            logger.info(f"INSIDER: Created GitHub Issue: {issue_url}")
+            issue_number = data.get("number")
             
-            return {"github_issue_url": issue_url}
+            return self.create_issue_payload(context, "GitHub", issue_url, f"#{issue_number}")
 
         except Exception as e:
             logger.error(f"INSIDER: Failed to create GitHub issue: {e}")

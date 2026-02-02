@@ -4,7 +4,7 @@ from django.db import models
 from django.utils import timezone
 from insider.models import Footprint, Incidence
 from insider.utils import generate_fingerprint
-from insider.registry import get_active_integrations
+from insider.registry import get_active_integrations, INTEGRATION_REGISTRY
 from insider.settings import settings as insider_settings
 
 logger = logging.getLogger(__name__)
@@ -75,14 +75,23 @@ def save_footprint(footprint_data: dict):
                 shared_context = {}
 
                 active_integrations = get_active_integrations()
-                try:
-                    for integration in active_integrations:
-                        result = integration.run(footprint, shared_context)
+                
+                for integration in active_integrations:
+                    try:
+                        IntegrationClass = INTEGRATION_REGISTRY.get(integration.identifier)
+                        
+                        if not IntegrationClass:
+                            logger.warning(f"INSIDER: Found active integration '{integration.identifier}' in DB but no code class found.")
+                            continue
+
+                        integration_instance = IntegrationClass(db_instance=integration)
+                        result = integration_instance.run(footprint, shared_context)
+                        
                         if result and isinstance(result, dict):
                             shared_context.update(result)
-                            
-                except Exception as e:
-                    logger.error(f"INSIDER: Integration '{integration.identifier}' failed: {e}")
+                                
+                    except Exception as e:
+                        logger.error(f"INSIDER: Integration '{integration.identifier}' failed: {e}")
             
     except Exception as e:
         logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)

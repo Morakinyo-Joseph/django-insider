@@ -24,21 +24,9 @@ def get_active_integrations():
     active_instances = []
 
     try:
-        db_integrations = InsiderIntegration.objects.filter(is_active=True)\
+        return InsiderIntegration.objects.filter(is_active=True)\
             .prefetch_related('config_keys')\
             .order_by('order')
-
-        for db_obj in db_integrations:
-            integration_class = INTEGRATION_REGISTRY.get(db_obj.identifier)
-
-            if integration_class:
-                try:
-                    instance = integration_class(db_instance=db_obj)
-                    active_instances.append(instance)
-                except Exception as e:
-                    logger.error(f"INSIDER: Failed to initialize integration '{db_obj.name}': {e}")
-            else:
-                logger.warning(f"INSIDER: Integration '{db_obj.identifier}' found in DB but code is missing in REGISTRY.")
                 
     except Exception as e:
         logger.error(f"INSIDER: Error fetching active integrations: {e}")

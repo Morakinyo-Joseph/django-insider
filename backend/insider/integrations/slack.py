@@ -58,25 +58,27 @@ class SlackIntegration(BaseIntegration):
         return f"```\n{snippet}\n```"
 
     def run(self, footprint, context):
-        # 1. Get Config
         webhook = self.get_config("webhook_url")
         channel = self.get_config("channel")
         if not webhook:
             return
 
-        # 2. Extract Data
         context = context or {}
         method = footprint.request_method.upper()
         status_code = footprint.status_code
         endpoint = footprint.request_path
         user = footprint.request_user
         
-        # 3. Check Context (Waterfall)
-        # This checks if a previous integration (like Jira) dropped data in the bucket
-        published_service = context.get("published_service", None)
-        published_url = context.get("published_url", None)
+        # previous integration dropped data in the bucket
+        issues = context.get("generated_issues", [])
+        
+        if not issues and context.get("issue_url"):
+             issues = [{
+                 "system": context.get("issue_system"),
+                 "url": context.get("issue_url"),
+                 "key": context.get("issue_key")
+             }]
 
-        # 4. Build Blocks
         header_text, section_text = self._get_block_info(status_code, user, method, endpoint)
         log_snippet = self._format_log_snippet(footprint.system_logs)
 
@@ -111,24 +113,37 @@ class SlackIntegration(BaseIntegration):
             }
         ]
 
-        # 5. Add "View Ticket" Button if Context exists
-        if published_url:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"✅ An issue has been automatically created in *{published_service}*."
-                },
-                "accessory": {
-                    "type": "button",
+        if issues:
+            button_elements = []
+            for issue in issues:
+                sys = issue.get("system", "External")
+                url = issue.get("url")
+                key = issue.get("key", "Link")
+
+                if url:
+                    button_elements.append({
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text", 
+                            "text": f"View on {sys} ({key})",
+                            "emoji": True
+                        },
+                        "url": url,
+                        "action_id": f"view_{sys.lower()}_{key}"
+                    })
+
+            if button_elements:
+                blocks.append({
+                    "type": "section",
                     "text": {
-                        "type": "plain_text",
-                        "text": f"View on {published_service}"
-                    },
-                    "url": published_url,
-                    "action_id": "view_external_issue"
-                },  
-            })
+                        "type": "mrkdwn",
+                        "text": f"*Issues Created:*"
+                    }
+                })
+                blocks.append({
+                    "type": "actions",
+                    "elements": button_elements[:5] # Limit to 5 buttons
+                })
 
         payload = {"blocks": blocks}
         if channel:
