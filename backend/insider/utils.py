@@ -1,4 +1,5 @@
 import sys
+import re
 from typing import Any, Dict
 import hashlib
 
@@ -60,8 +61,8 @@ def generate_fingerprint(footprint_data: dict) -> str:
         identify_string = f"{exc_name}|{file_name}|{line_no}"
 
     else:
-        # NOTE: Normalize paths (e.g. replace IDs with {id})
-        # to prevent /user2/1 and /users/2 creating different incidences
-        identify_string = f"{status}|{path}"
+        # Normalize paths: replace digits (IDs) with {id} to group similar endpoint errors
+        normalized_path = re.sub(r'/\d+/', '/{id}/', path)
+        identify_string = f"{status}|{normalized_path}"
 
     return hashlib.md5(identify_string.encode('utf-8')).hexdigest()

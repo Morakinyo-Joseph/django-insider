@@ -173,20 +173,22 @@ class FootprintMiddleware(MiddlewareMixin):
         
         return request_body
 
-    def _mask_fields(self, data: Dict) -> Dict:
+    def _mask_fields(self, data: Any) -> Any:
         """
         Masks sensitive fields based on insider_settings.MASK_FIELDS.
         """
-
-        masked_data = data.copy()
         fields_to_mask = [f.lower() for f in insider_settings.MASK_FIELDS]
         mask_value = "***masked***"
         
-        for key, value in masked_data.items():
-            if key.lower() in fields_to_mask:
-                masked_data[key] = mask_value
+        if isinstance(data, dict):
+            return {
+                k: (mask_value if str(k).lower() in fields_to_mask else self._mask_fields(v))
+                for k, v in data.items()
+            }
+        elif isinstance(data, list):
+            return [self._mask_fields(item) for item in data]
 
-        return masked_data
+        return data
     
     def _capture_response_body(self, response) -> Optional[Dict[str, Any]]:
         """

@@ -32,7 +32,7 @@ def save_footprint(footprint_data: dict):
                 title = f"Error {footprint.status_code} at {footprint.request_path}"
 
             # Aggregate
-            incidence, created = Incidence.objects.get_or_create(
+            incidence, created = Incidence.objects.using(db_alias).get_or_create(
                 fingerprint=fingerprint_hash,
                 defaults={'title': title}
             )
@@ -42,7 +42,7 @@ def save_footprint(footprint_data: dict):
 
             # update count and last seen for this incidence instance
             if not created:
-                Incidence.objects.filter(id=incidence.id).update(
+                Incidence.objects.using(db_alias).filter(id=incidence.id).update(
                     occurrence_count=models.F('occurrence_count') + 1,
                     last_seen=timezone.now()
                 )
@@ -59,7 +59,7 @@ def save_footprint(footprint_data: dict):
                 # Notify if incidence was already marked resolved.
                 if incidence.status == 'RESOLVED':
                     incidence.status = 'OPEN'
-                    incidence.save(update_fields=['status'])
+                    incidence.save(using=db_alias, update_fields=['status'])
                     should_notify = True
 
                 # Notify if the cooldown has passed.
@@ -70,7 +70,7 @@ def save_footprint(footprint_data: dict):
 
             if should_notify:
                 incidence.last_notified = timezone.now()
-                incidence.save(update_fields=["last_notified"])
+                incidence.save(using=db_alias, update_fields=["last_notified"])
 
                 shared_context = {}
 
