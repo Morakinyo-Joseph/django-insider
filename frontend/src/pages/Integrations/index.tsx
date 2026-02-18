@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { GripVertical, ChevronDown, ChevronUp, CheckCircle2, HelpCircle } from "lucide-react"; // Removed Puzzle
 import ConfigForm from "../../components/integrations/ConfigForm";
 import { fetchIntegrations, toggleIntegration, reorderIntegrations, saveIntegrationConfig } from "../../api/client";
