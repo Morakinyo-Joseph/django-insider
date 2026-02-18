@@ -64,3 +64,23 @@ export interface InsiderSetting {
   field_type: 'BOOLEAN' | 'INTEGER' | 'LIST' | 'STRING';
   description: string;
 }
+
+export interface Integration {
+  id: number;
+  identifier: string;
+  name: string;
+  description: string;
+  logo_url: string;
+  is_active: boolean;
+  order: number;
+  config_keys: ConfigKey[];
+}
+
+export interface ConfigKey {
+  key: string;
+  label: string;
+  value: string;
+  field_type: "STRING" | "PASSWORD" | "BOOLEAN" | "INTEGER";
+  help_text?: string;
+  is_required: boolean;
+}

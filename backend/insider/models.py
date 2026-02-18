@@ -172,7 +172,55 @@ class InsiderSetting(models.Model):
         return f"{self.key} ({self.value})"
     
 
+class InsiderIntegration(models.Model):
+    """
+    Represents an available integration (e.g., 'slack', 'jira').
+    The 'order' field determines the Waterfall execution sequence.
+    """
+    identifier = models.CharField(max_length=50, unique=True, help_text="Internal ID (e.g., 'slack')")
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0, help_text="Lower numbers run first (Waterfall)")
+    
+    # Metadata for the UI
+    description = models.TextField(blank=True)
+    logo_url = models.URLField(blank=True, null=True)
 
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return self.name
+
+
+class InsiderIntegrationKey(models.Model):
+    """
+    Stores the specific configuration values for an integration.
+    e.g. Integration: Slack -> Key: 'webhook_url', Value: 'https://hooks.slack.com/...'
+    """
+    
+    FIELD_TYPE_CHOICES = (
+        ("STRING", "Text Input"),
+        ("PASSWORD", "Secret Input"), # Mask this in UI
+        ("BOOLEAN", "Toggle"),
+        ("INTEGER", "Number"),
+    )
+
+    integration = models.ForeignKey(InsiderIntegration, on_delete=models.CASCADE, related_name="config_keys")
+    key = models.CharField(max_length=100, help_text="The variable name used in code")
+    value = models.TextField(blank=True, null=True) # Storing as text, handle type conversion in code
+    
+    # UI Helpers
+    label = models.CharField(max_length=200, help_text="Human readable label for the UI")
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPE_CHOICES, default="STRING")
+    is_required = models.BooleanField(default=True)
+    help_text = models.TextField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('integration', 'key')
+
+    def __str__(self):
+        return f"{self.integration.identifier} - {self.key}"
 
 
 

@@ -47,8 +47,6 @@ DEFAULTS: Dict[str, Any] = {
     "LOG_LEVEL": "INFO",  # optional: DEBUG/INFO/WARNING/ERROR
     "EXCLUDE_CONTENT_TYPES": ["application/octet-stream"],
     "CAPTURE_METHODS": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
-    "PUBLISHERS": [],
-    "NOTIFIERS": [],
     "COOLDOWN_HOURS": 24,
     "DATA_RETENTION_DAYS": 30,
 }
@@ -71,8 +69,6 @@ class InsiderSettings:
     LOG_LEVEL: str = DEFAULTS["LOG_LEVEL"]
     EXCLUDE_CONTENT_TYPES: List[str] = field(default_factory=lambda: DEFAULTS["EXCLUDE_CONTENT_TYPES"][:])
     CAPTURE_METHODS: List[str] = field(default_factory=lambda: DEFAULTS["CAPTURE_METHODS"][:])
-    PUBLISHERS: List[str] = field(default_factory=lambda: DEFAULTS["PUBLISHERS"][:])
-    NOTIFIERS: List[str] = field(default_factory=lambda: DEFAULTS["NOTIFIERS"][:])
     COOLDOWN_HOURS: int = DEFAULTS["COOLDOWN_HOURS"]
     DATA_RETENTION_DAYS: int = DEFAULTS["DATA_RETENTION_DAYS"]
 
@@ -233,19 +229,6 @@ def _validate_and_normalize(raw: Dict[str, Any]) -> Dict[str, Any]:
         raise TypeError("INSIDER['MASK_FIELDS'] must be a list of strings.")
     cleaned["MASK_FIELDS"] = [str(x) for x in mask]
 
-
-    # PUBLISHERS & NOTIFIERS: list of strings
-    for key in ["PUBLISHERS", "NOTIFIERS"]:
-        val = raw.get(key, DEFAULTS[key])
-        
-        if isinstance(val, str):
-            val = [s.strip() for s in val.split(",") if s.strip()]
-            
-        if not isinstance(val, (list, tuple)):
-             raise TypeError(f"INSIDER['{key}'] must be a list of strings.")
-        
-        # Normalize to lowercase strings to prevent mismatch in registry
-        cleaned[key] = [str(v).lower() for v in val]
 
 
     # DB_ALIAS: string

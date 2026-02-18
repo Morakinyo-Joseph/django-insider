@@ -20,8 +20,5 @@ class _500(APIView):
 
 class _200(APIView):
     def post(self, request):
-        logger.info("This is the rhythm of the night.")
-
-        1 / 0
 
         return Response({"reply": "The night o yea"})
