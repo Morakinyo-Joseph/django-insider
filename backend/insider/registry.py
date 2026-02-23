@@ -1,77 +1,34 @@
 import logging
-from insider.settings import settings as insider_settings 
-from .publishers import JiraPublisher
-from .notifiers import SlackNotifier
+from insider.models import InsiderIntegration
+from insider.integrations.slack import SlackIntegration
+from insider.integrations.jira import JiraIntegration
+from insider.integrations.github import GithubIntegration
+from insider.integrations.gmail import GmailIntegration
+
 
 logger = logging.getLogger(__name__)
 
 
-PUBLISHER_REGISTRY = {
-    "jira": JiraPublisher,
+INTEGRATION_REGISTRY = {
+    "slack": SlackIntegration,
+    "jira": JiraIntegration, 
+    "github": GithubIntegration,
+    "gmail": GmailIntegration
 }
 
-
-NOTIFIER_REGISTRY = {
-    "slack": SlackNotifier,
-}
-
-
-def get_active_publishers():
+def get_active_integrations():
     """
-    Reads INSIDER_PUBLISHERS from settings and looks them up in the registry.
-
-    Returns:
-        INITIALIZED objects (e.g., [JiraPublisher()])
+    Fetches active integrations from the DB, sorts them by user-defined Order,
+    and initializes the Python classes with the DB config.
     """
-    
-    config_keys = insider_settings.PUBLISHERS
-
     active_instances = []
 
-    for key in config_keys:
-        lookup_key = str(key).lower()       
-        publisher_class = PUBLISHER_REGISTRY.get(lookup_key)
+    try:
+        return InsiderIntegration.objects.filter(is_active=True)\
+            .prefetch_related('config_keys')\
+            .order_by('order')
+                
+    except Exception as e:
+        logger.error(f"INSIDER: Error fetching active integrations: {e}")
 
-        if publisher_class:
-            try:
-                instance = publisher_class() # initialize the class
-                active_instances.append(instance)
-            except Exception as e:
-                logger.error(f"INSIDER: Failed to initialize Publisher '{key}': {e}")
-        else:
-            logger.warning(f"INSIDER: Publisher '{key}' is in settings but NOT in registry.")
-    
     return active_instances
-
-
-
-def get_active_notifiers():
-    """
-    Reads INSIDER_NOTIFIERS from settings and looks them up in the registry.
-    
-    Returns:
-        INITIALIZED objects (e.g., [SlackNotifier()])
-    """
-    
-    config_keys = insider_settings.NOTIFIERS
-
-    active_instances = []
-
-    for key in config_keys:
-        lookup_key = str(key).lower()
-        notifier_class = NOTIFIER_REGISTRY.get(lookup_key)
-
-        if notifier_class:
-            try:
-                instance = notifier_class() # initialize the class
-                active_instances.append(instance)
-            except Exception as e:
-                logger.error(f"INSIDER: Failed to initialize Notifier '{key}': {e}")
-        else:
-            logger.warning(f"INSIDER: Notifier '{key}' is in settings but NOT in registry.")
-    
-    return active_instances
-
-
-
-    

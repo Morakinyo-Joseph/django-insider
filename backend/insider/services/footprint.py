@@ -4,7 +4,7 @@ from django.db import models
 from django.utils import timezone
 from insider.models import Footprint, Incidence
 from insider.utils import generate_fingerprint
-from insider.registry import get_active_publishers, get_active_notifiers
+from insider.registry import get_active_integrations, INTEGRATION_REGISTRY
 from insider.settings import settings as insider_settings
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def save_footprint(footprint_data: dict):
                 title = f"Error {footprint.status_code} at {footprint.request_path}"
 
             # Aggregate
-            incidence, created = Incidence.objects.get_or_create(
+            incidence, created = Incidence.objects.using(db_alias).get_or_create(
                 fingerprint=fingerprint_hash,
                 defaults={'title': title}
             )
@@ -42,7 +42,7 @@ def save_footprint(footprint_data: dict):
 
             # update count and last seen for this incidence instance
             if not created:
-                Incidence.objects.filter(id=incidence.id).update(
+                Incidence.objects.using(db_alias).filter(id=incidence.id).update(
                     occurrence_count=models.F('occurrence_count') + 1,
                     last_seen=timezone.now()
                 )
@@ -59,7 +59,7 @@ def save_footprint(footprint_data: dict):
                 # Notify if incidence was already marked resolved.
                 if incidence.status == 'RESOLVED':
                     incidence.status = 'OPEN'
-                    incidence.save(update_fields=['status'])
+                    incidence.save(using=db_alias, update_fields=['status'])
                     should_notify = True
 
                 # Notify if the cooldown has passed.
@@ -70,27 +70,28 @@ def save_footprint(footprint_data: dict):
 
             if should_notify:
                 incidence.last_notified = timezone.now()
-                incidence.save(update_fields=["last_notified"])
+                incidence.save(using=db_alias, update_fields=["last_notified"])
 
                 shared_context = {}
-            
-                if footprint.status_code == 500:
-                    # Run publishers
-                    for publisher in get_active_publishers():
-                        try:
-                            result = publisher.publish(footprint)
-                            if result:
-                                shared_context.update(result)
-                        except Exception as e:
-                            logger.error(f"INSIDER: Publisher failed: {e}")
 
-                # Run Notifiers
-                for notifier in get_active_notifiers():
+                active_integrations = get_active_integrations()
+                
+                for integration in active_integrations:
                     try:
-                        notifier.notify(footprint, context=shared_context)
-                    except Exception as e:
-                        logger.error(f"INSIDER: Notifier failed: {e}")
-          
+                        IntegrationClass = INTEGRATION_REGISTRY.get(integration.identifier)
+                        
+                        if not IntegrationClass:
+                            logger.warning(f"INSIDER: Found active integration '{integration.identifier}' in DB but no code class found.")
+                            continue
 
+                        integration_instance = IntegrationClass(db_instance=integration)
+                        result = integration_instance.run(footprint, shared_context)
+                        
+                        if result and isinstance(result, dict):
+                            shared_context.update(result)
+                                
+                    except Exception as e:
+                        logger.error(f"INSIDER: Integration '{integration.identifier}' failed: {e}")
+            
     except Exception as e:
         logger.error(f"INSIDER: Critical error in save_footprint_task: {e}", exc_info=True)

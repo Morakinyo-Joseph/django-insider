@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { DashboardStats, Incidence, Footprint, InsiderSetting } from '../types';
+import type { DashboardStats, Incidence, Footprint, InsiderSetting, Integration } from '../types';
 
 // Manually find the CSRF token in the browser cookies
 const getCookie = (name: string) => {
@@ -42,7 +42,7 @@ apiClient.interceptors.request.use((config) => {
 // --- API FUNCTIONS (Unchanged) ---
 
 export const fetchDashboardStats = async (): Promise<DashboardStats> => {
-  const response = await apiClient.get('stats/dashboard/');
+  const response = await apiClient.get('dashboard/stats/');
   return response.data;
 };
 
@@ -92,4 +92,26 @@ export const fetchSettings = async (): Promise<InsiderSetting[]> => {
 
 export const updateSetting = async (id: number, value: any): Promise<void> => {
   await apiClient.patch(`settings/${id}/`, { value });
+};
+
+export const fetchIntegrations = async (): Promise<Integration[]> => {
+  const response = await apiClient.get("integrations/");
+  return response.data;
+};
+
+export const toggleIntegration = async (identifier: string, isActive: boolean) => {
+  const response = await apiClient.patch(`integrations/${identifier}/toggle/`, {
+    is_active: isActive,
+  });
+  return response.data;
+};
+
+export const reorderIntegrations = async (payload: { order: string[] }) => {
+  const response = await apiClient.post("integrations/reorder/", payload);
+  return response.data;
+};
+
+export const saveIntegrationConfig = async (identifier: string, data: Record<string, any>) => {
+  const response = await apiClient.post(`integrations/${identifier}/save_config/`, data);
+  return response.data;
 };

@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "./layout/DashboardLayout";
 import Settings from "./pages/Settings";
 import Footprints from "./pages/Footprints";
+import Integrations from "./pages/Integrations";
 
 // Import Pages
 import Dashboard from "./pages/Dashboard";
@@ -25,6 +26,7 @@ function App() {
             <Route path="/incidences/:incidenceId" element={<InvestigationRoom />} />
             <Route path="/footprints" element={<Footprints />} />
             <Route path="/footprints/:footprintId" element={<ForensicsLab />} />
+            <Route path="/integrations" element={<Integrations />} />
             <Route path="/settings" element={<Settings />} />
             
             {/* Fallback */}

@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from insider.models import Incidence, Footprint, InsiderSetting
+from insider.models import (
+    Incidence, Footprint, InsiderSetting,
+    InsiderIntegration, InsiderIntegrationKey
+)
 from insider.settings import settings as insider_settings 
 
 
@@ -72,3 +75,29 @@ class InsiderSettingSerializer(serializers.ModelSerializer):
             'description', 'updated_at'
         ]
         read_only_fields = ['key', 'field_type', 'description']
+
+
+
+class InsiderIntegrationKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InsiderIntegrationKey
+        fields = ['id', 'key', 'label', 'value', 'field_type', 'is_required', 'help_text']
+
+    def to_representation(self, instance):
+        """
+        Security: Mask PASSWORD fields so secrets don't leak to the browser.
+        """
+        ret = super().to_representation(instance)
+        
+        if instance.field_type == 'PASSWORD' and instance.value:
+            ret['value'] = '********' 
+            
+        return ret
+
+
+class InsiderIntegrationSerializer(serializers.ModelSerializer):
+    config_keys = InsiderIntegrationKeySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = InsiderIntegration
+        fields = ['id', 'identifier', 'name', 'description', 'logo_url', 'is_active', 'order', 'config_keys']
