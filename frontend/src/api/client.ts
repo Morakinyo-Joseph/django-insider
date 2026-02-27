@@ -80,8 +80,8 @@ export const fetchFootprintBreadcrumbs = async (id: string): Promise<Footprint[]
   return response.data;
 };
 
-export const fetchFootprintsList = async (page: number = 1): Promise<any> => {
-  const response = await apiClient.get(`footprints/?page=${page}`);
+export const fetchFootprintsList = async (page: number = 1, filters: Record<string, string> = {}): Promise<any> => {
+  const response = await apiClient.get('footprints/', { params: { page, ...filters } });
   return response.data;
 };
 

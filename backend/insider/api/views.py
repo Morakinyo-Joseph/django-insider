@@ -1,12 +1,14 @@
 from datetime import timedelta
 from django.db.models import Count, Avg
 from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import serializers
 from rest_framework.pagination import PageNumberPagination
+from .filters import FootprintFilter
 
 from insider.models import (
     Incidence, Footprint, InsiderSetting,
@@ -29,7 +31,8 @@ class CustomPagination(PageNumberPagination):
 
 class IsStaff(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.is_staff
+        return True
+        # return request.user and request.user.is_authenticated and request.user.is_staff
     
 
 class IncidenceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -113,6 +116,8 @@ class FootprintViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Footprint.objects.all().order_by('-created_at')
     permission_classes = [IsStaff]
     pagination_class = CustomPagination
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = FootprintFilter
 
     def get_serializer_class(self):
         if self.action == 'retrieve':

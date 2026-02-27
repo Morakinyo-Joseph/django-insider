@@ -1,23 +1,90 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { fetchFootprintsList } from "../../api/client";
 import { 
   ArrowRight, ArrowLeft, Activity, Globe, User, ShieldAlert, 
-  Database, AlertTriangle 
+  Database, AlertTriangle, Search, Filter, X, Check 
 } from "lucide-react";
 import { format } from "date-fns";
+import { format, subMinutes, subHours, subDays, startOfDay } from "date-fns";
 import { TableRowSkeleton } from "../../components/Skeleton";
 
 export default function Footprints() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
+  
+  // --- NEW SEARCH FIELD LOGIC START ---
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const activeFilters = useMemo(() => {
+    const filters: Record<string, string> = {};
+    searchParams.forEach((value, key) => {
+      if (value && key !== "page") filters[key] = value;
+    });
+    return filters;
+  }, [searchParams]);
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [draftFilters, setDraftFilters] = useState<Record<string, string>>(activeFilters);
+  
+  const urlPage = parseInt(searchParams.get("page") || "1", 10);
+  const [page, setLocalPage] = useState(urlPage);
+
+  useEffect(() => {
+    setDraftFilters(activeFilters);
+    setLocalPage(urlPage);
+  }, [activeFilters, urlPage]);
+
+  // Overriding setPage to keep your original pagination untouched
+  const setPage = (updater: any) => {
+    const newPage = typeof updater === 'function' ? updater(page) : updater;
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page", newPage.toString());
+    setSearchParams(newParams);
+  };
+
+  const handleDraftChange = (key: string, value: string) => {
+    setDraftFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const applyFilters = () => {
+    const newParams = new URLSearchParams();
+    Object.entries(draftFilters).forEach(([key, value]) => {
+      if (value) newParams.set(key, value);
+    });
+    newParams.set("page", "1");
+    setSearchParams(newParams);
+  };
+
+  const clearFilters = () => {
+    setDraftFilters({});
+    setSearchParams(new URLSearchParams({ page: "1" }));
+    setIsFilterOpen(false);
+  };
+
+  const applyPreset = (type: '15m' | '1h' | '24h' | 'today') => {
+    const now = new Date();
+    let start: Date;
+    
+    switch(type) {
+        case '15m': start = subMinutes(now, 15); break;
+        case '1h': start = subHours(now, 1); break;
+        case '24h': start = subDays(now, 1); break;
+        case 'today': start = startOfDay(now); break;
+    }
+    
+    handleDraftChange("created_after", format(start, "yyyy-MM-dd'T'HH:mm"));
+    handleDraftChange("created_before", ""); // Clear end date to mean "now"
+  };
+
+  const activeFilterCount = Object.keys(activeFilters).length;
+  // --- NEW SEARCH FIELD LOGIC END ---
 
   // Fetch data with caching
   // Added isFetching to detect background updates
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["footprints", page],
-    queryFn: () => fetchFootprintsList(page),
+    queryKey: ["footprints", page, activeFilters],
+    queryFn: () => fetchFootprintsList(page, activeFilters),
     placeholderData: (previousData) => previousData, 
   });
 
@@ -31,7 +98,7 @@ export default function Footprints() {
 
   return (
     <div className="space-y-6">
-      {/*  CSS Animation for the Progress Bar */}
+      {/* CSS Animation for the Progress Bar */}
       <style>{`
         @keyframes indeterminate-slide {
           0% { transform: translateX(-100%); }
@@ -53,14 +120,14 @@ export default function Footprints() {
             </span>
             <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    onClick={() => setPage((p: number) => Math.max(1, p - 1))}
                     disabled={!hasPrev || isPaginationLoading}
                     className="px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border-r border-gray-200"
                   >
                     <ArrowLeft size={14} />
                   </button>
                   <button
-                    onClick={() => setPage((p) => p + 1)}
+                    onClick={() => setPage((p: number) => p + 1)}
                     disabled={!hasNext || isPaginationLoading}
                     className="px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -70,13 +137,176 @@ export default function Footprints() {
         </div>
       </div>
 
+      {/* --- NEW SEARCH UI BLOCK START --- */}
+      <div className="flex items-center gap-3 w-full">
+        <div className="relative flex-grow sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <input 
+            type="text" 
+            placeholder="Search payloads or IDs..."
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+            value={draftFilters.global_search || ""}
+            onChange={(e) => handleDraftChange("global_search", e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+          />
+        </div>
+        <button 
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+            activeFilterCount > 0 || isFilterOpen 
+              ? 'bg-purple-50 border-purple-200 text-purple-700' 
+              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <Filter size={16} />
+          Filters {activeFilterCount > 0 && <span className="bg-purple-200 text-purple-800 text-[10px] px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
+        </button>
+      </div>
+
+      {isFilterOpen && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-inner">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-semibold text-gray-700">Advanced Filters</h3>
+            {activeFilterCount > 0 && (
+              <button onClick={clearFilters} className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center gap-1">
+                <X size={12} /> Clear All
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">User ID / Email</label>
+              <input 
+                type="text" 
+                placeholder="e.g. joseph@expedier.co"
+                className="w-full p-2 text-sm border border-gray-200 rounded bg-white"
+                value={draftFilters.request_user || ""}
+                onChange={(e) => handleDraftChange("request_user", e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Endpoint Path</label>
+              <input 
+                type="text" 
+                placeholder="e.g. /api/checkout"
+                className="w-full p-2 text-sm border border-gray-200 rounded bg-white"
+                value={draftFilters.request_path || ""}
+                onChange={(e) => handleDraftChange("request_path", e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">HTTP Method</label>
+              <select 
+                className="w-full p-2 text-sm border border-gray-200 rounded bg-white text-gray-700"
+                value={draftFilters.request_method || ""}
+                onChange={(e) => handleDraftChange("request_method", e.target.value)}
+              >
+                <option value="">All Methods</option>
+                <option value="get">GET</option>
+                <option value="post">POST</option>
+                <option value="put">PUT</option>
+                <option value="patch">PATCH</option>
+                <option value="delete">DELETE</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Status Code Types</label>
+              <select 
+                className="w-full p-2 text-sm border border-gray-200 rounded bg-white text-gray-700"
+                value={
+                  draftFilters.status_code__in?.includes("500") ? "5xx" :
+                  draftFilters.status_code__in?.includes("400") ? "4xx" : 
+                  ""
+                }
+                onChange={(e) => {
+                  if (e.target.value === "5xx") handleDraftChange("status_code__in", "500,502,503,504");
+                  else if (e.target.value === "4xx") handleDraftChange("status_code__in", "400,401,403,404,422");
+                  else handleDraftChange("status_code__in", "");
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value="5xx">Server Errors (5xx)</option>
+                <option value="4xx">Client Errors (4xx)</option>
+              </select>
+            </div>
+            
+            {/* Time Range Filter (Spans 2 Columns) */}
+            <div className="md:col-span-2">
+              <div className="flex justify-between items-end mb-1">
+                <label className="block text-xs font-medium text-gray-500">Time Range</label>
+                <div className="flex gap-1">
+                  {['15m', '1h', '24h', 'Today'].map((label) => (
+                    <button
+                      key={label}
+                      onClick={() => applyPreset(label.toLowerCase().replace(' ', '') as any)}
+                      className="px-2 py-0.5 text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 rounded border border-purple-100 transition-colors font-medium"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="datetime-local" 
+                  className="w-full p-2 text-sm border border-gray-200 rounded bg-white text-gray-600"
+                  value={draftFilters.created_after || ""}
+                  onChange={(e) => handleDraftChange("created_after", e.target.value)}
+                />
+                <span className="text-gray-400 text-xs">to</span>
+                <input 
+                  type="datetime-local" 
+                  className="w-full p-2 text-sm border border-gray-200 rounded bg-white text-gray-600"
+                  value={draftFilters.created_before || ""}
+                  onChange={(e) => handleDraftChange("created_before", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Min. Response Time (ms)</label>
+              <input 
+                type="number" 
+                placeholder="e.g. 2000"
+                className="w-full p-2 text-sm border border-gray-200 rounded bg-white"
+                value={draftFilters.min_response_time || ""}
+                onChange={(e) => handleDraftChange("min_response_time", e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
+            </div>
+             <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Min. DB Queries</label>
+              <input 
+                type="number" 
+                placeholder="e.g. 50"
+                className="w-full p-2 text-sm border border-gray-200 rounded bg-white"
+                value={draftFilters.min_db_queries || ""}
+                onChange={(e) => handleDraftChange("min_db_queries", e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end pt-2 border-t border-gray-200">
+             <button 
+                onClick={applyFilters}
+                className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+             >
+                <Check size={14} /> Apply Filters
+             </button>
+          </div>
+        </div>
+      )}
+      {/* --- NEW SEARCH UI BLOCK END --- */}
+
       {/* TABLE CONTAINER */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
         
         {/* Purple Progress Bar (Visible only during pagination) */}
         {isPaginationLoading && (
            <div className="absolute top-0 left-0 w-full h-0.5 bg-purple-100 overflow-hidden z-10">
-             {/*  Applied the animation style manually here */}
+             {/* Applied the animation style manually here */}
              <div 
                className="w-full h-full bg-purple-600" 
                style={{ animation: 'indeterminate-slide 1s infinite linear' }}

@@ -242,10 +242,10 @@ class DisableMigrations:
 # - INSIDER = {}
 # - INSIDER_
 
-INSIDER = {
-    "IGNORE_PATHS": ["/insider/"],
-    "DATA_RETENTION_DAYS": 30
-}
+# INSIDER = {
+#     "IGNORE_PATHS": ["/insider/"],
+#     "DATA_RETENTION_DAYS": 30
+# }
 
 
 INSIDER_CAPTURE_REQUEST_BODY = True
