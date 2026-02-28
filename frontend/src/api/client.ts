@@ -1,17 +1,17 @@
 import axios from 'axios';
 import type { DashboardStats, Incidence, Footprint, InsiderSetting, Integration } from '../types';
 
-// Manually find the CSRF token in the browser cookies
-const getCookie = (name: string) => {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  return document.cookie
-    .split(";")
-    .map((cookie) => cookie.trim())
-    .find((cookie) => cookie.startsWith(`${name}=`))
-    ?.split("=")[1] ?? null;
-};
+// // Manually find the CSRF token in the browser cookies
+// const getCookie = (name: string) => {
+//   if (typeof document === "undefined") {
+//     return null;
+//   }
+//   return document.cookie
+//     .split(";")
+//     .map((cookie) => cookie.trim())
+//     .find((cookie) => cookie.startsWith(`${name}=`))
+//     ?.split("=")[1] ?? null;
+// };
 
 // Detect environment
 const BASE_URL = import.meta.env.DEV 
@@ -24,19 +24,19 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Crucial: Ensures the cookie is sent back
+  // withCredentials: true, // Crucial: Ensures the cookie is sent back
 });
 
-// Before every request, manually grab the token and shove it in the header.
-apiClient.interceptors.request.use((config) => {
-  const token = getCookie("csrftoken");
-  if (token) {
-    config.headers.set("X-CSRFToken", token);
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+// // Before every request, manually grab the token and shove it in the header.
+// apiClient.interceptors.request.use((config) => {
+//   const token = getCookie("csrftoken");
+//   if (token) {
+//     config.headers.set("X-CSRFToken", token);
+//   }
+//   return config;
+// }, (error) => {
+//   return Promise.reject(error);
+// });
 
 
 // --- API FUNCTIONS (Unchanged) ---
