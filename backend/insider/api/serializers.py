@@ -30,7 +30,7 @@ class FootprintListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'request_id', 'request_method', 'request_path', 'status_code',
             'request_user', 'response_time', 'created_at', 'db_query_count',
-            'stack_trace', 'is_slow'
+            'stack_trace', 'is_slow', 'ip_address', 'user_agent'
         ]
 
 class FootprintDetailSerializer(serializers.ModelSerializer):

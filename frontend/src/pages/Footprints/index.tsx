@@ -1,12 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { fetchFootprintsList } from "../../api/client";
 import { 
   ArrowRight, ArrowLeft, Activity, Globe, User, ShieldAlert, 
-  Database, AlertTriangle, Search, Filter, X, Check 
+  Database, AlertTriangle, Search, Filter, X, Check, Info 
 } from "lucide-react";
-import { format } from "date-fns";
 import { format, subMinutes, subHours, subDays, startOfDay } from "date-fns";
 import { TableRowSkeleton } from "../../components/Skeleton";
 
@@ -137,7 +136,7 @@ export default function Footprints() {
         </div>
       </div>
 
-      {/* --- NEW SEARCH UI BLOCK START --- */}
+      {/* SEARCH UI */}
       <div className="flex items-center gap-3 w-full">
         <div className="relative flex-grow sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -306,7 +305,6 @@ export default function Footprints() {
         {/* Purple Progress Bar (Visible only during pagination) */}
         {isPaginationLoading && (
            <div className="absolute top-0 left-0 w-full h-0.5 bg-purple-100 overflow-hidden z-10">
-             {/* Applied the animation style manually here */}
              <div 
                className="w-full h-full bg-purple-600" 
                style={{ animation: 'indeterminate-slide 1s infinite linear' }}
@@ -362,8 +360,28 @@ export default function Footprints() {
 
 // --- ROW COMPONENT ---
 function FootprintRow({ log, onClick }: { log: any; onClick: () => void }) {
-  
-  // Method Color Logic
+  const [showPopover, setShowPopover] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPopover) return;
+    const handleScroll = () => setShowPopover(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setShowPopover(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPopover]);
+
   const methodColors: Record<string, string> = {
     get: "bg-blue-50 text-blue-700 border-blue-200",
     post: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -376,6 +394,32 @@ function FootprintRow({ log, onClick }: { log: any; onClick: () => void }) {
   // Status Color Logic
   const isError = log.status_code >= 400;
   const statusColor = isError ? "text-red-600 bg-red-50 border-red-100" : "text-green-600 bg-green-50 border-green-100";
+
+  const handlePopoverToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (showPopover) {
+      setShowPopover(false);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const style: React.CSSProperties = {
+      position: 'fixed',
+      right: window.innerWidth - rect.right,
+      zIndex: 1000, 
+    };
+    if (window.innerHeight - rect.bottom < 200) {
+      style.bottom = window.innerHeight - rect.top + 8;
+    } else {
+      style.top = rect.bottom + 8;
+    }
+    setPopoverStyle(style);
+    setShowPopover(true);
+  };
+
+  const copyToClipboard = (e: React.MouseEvent, text: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+  };
 
   return (
     <tr 
@@ -391,7 +435,7 @@ function FootprintRow({ log, onClick }: { log: any; onClick: () => void }) {
       <td className="px-6 py-4">
          <div className="flex items-center gap-2 group-hover:translate-x-1 transition-transform">
              <Globe size={14} className="text-gray-400" />
-             <span className="font-mono text-sm text-gray-700 truncate max-w-xs block" title={log.request_path}>
+             <span className="font-mono text-sm text-gray-700 truncate max-w-[30ch] block" title={log.request_path}>
                 {log.request_path}
              </span>
          </div>
@@ -435,7 +479,45 @@ function FootprintRow({ log, onClick }: { log: any; onClick: () => void }) {
             <span className="truncate max-w-[150px]">
                 {log.request_user === "anonymous" ? "Anonymous" : log.request_user}
             </span>
+            {(log.ip_address || log.user_agent) && (
+              <button
+                onClick={handlePopoverToggle}
+                className="text-gray-400 hover:text-purple-600 focus:outline-none ml-1 p-0.5 rounded-full hover:bg-purple-50 transition-colors"
+              >
+                <Info size={12} className="opacity-70" />
+              </button>
+            )}
          </div>
+         {showPopover && (
+            <div 
+              ref={popoverRef}
+              style={popoverStyle}
+              className="w-72 bg-white border border-gray-200 shadow-xl rounded-lg p-3 flex flex-col gap-3"
+              onClick={(e) => e.stopPropagation()} 
+            >
+              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                 <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Environment</span>
+                 <button onClick={(e) => { e.stopPropagation(); setShowPopover(false); }} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+              </div>
+              {log.ip_address && (
+                <div>
+                  <span className="text-[10px] text-gray-400 font-medium uppercase mb-1 block">IP Address</span>
+                  <div className="flex items-center justify-between bg-gray-50 p-1.5 rounded border border-gray-100 group/item">
+                    <span className="text-xs font-mono text-gray-700">{log.ip_address}</span>
+                    <button onClick={(e) => copyToClipboard(e, log.ip_address)} className="text-[10px] text-purple-600 opacity-0 group-hover/item:opacity-100 transition-opacity">Copy</button>
+                  </div>
+                </div>
+              )}
+              {log.user_agent && (
+                <div>
+                  <span className="text-[10px] text-gray-400 font-medium uppercase mb-1 block">User Agent</span>
+                  <div className="bg-gray-50 p-1.5 rounded border border-gray-100 group/item max-h-24 overflow-y-auto">
+                    <span className="text-[10px] text-gray-600 font-mono break-all leading-relaxed">{log.user_agent}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+         )}
       </td>
 
       {/* CUSTOM DATE FORMAT */}
