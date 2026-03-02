@@ -31,8 +31,7 @@ class CustomPagination(PageNumberPagination):
 
 class IsStaff(permissions.BasePermission):
     def has_permission(self, request, view):
-        return True
-        # return request.user and request.user.is_authenticated and request.user.is_staff
+        return request.user and request.user.is_authenticated and request.user.is_staff
     
 
 class IncidenceViewSet(viewsets.ReadOnlyModelViewSet):
