@@ -2,7 +2,9 @@ Django
 djangorestframework
 django-cors-headers
 django-environ
+django-filter
 psycopg2-binary
 requests
+redis
 celery
 atlassian-python-api
